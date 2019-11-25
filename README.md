@@ -27,5 +27,5 @@ $ pip install -U python-dotenv
 
 From here, running the bot is simple:
 ```
-$ python bot.py
+$ python Midnight.py
 ```
