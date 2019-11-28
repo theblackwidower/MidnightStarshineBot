@@ -1,4 +1,3 @@
-
 # Midnight Starshine
 
 This is Midnight Starshine, the Discord bot I built for Ponyworld.
