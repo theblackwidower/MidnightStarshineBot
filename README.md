@@ -28,3 +28,10 @@ From here, running the bot is simple:
 ```
 $ python Midnight.py
 ```
+
+## Upcoming Features
+
+  * Stopping Emoji Spam
+  * On-the-fly rule lookup
+  * Currency system ('payday' command)
+  * Custom role assignment based on user activity rates
