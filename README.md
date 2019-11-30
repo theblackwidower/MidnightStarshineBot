@@ -16,7 +16,7 @@ DISCORD_TOKEN=[Insert Bot Token here]
 ```
 Insert the token in the appropriate location. (Don't include the brackets.)
 
-You'll need to install Python.
+You'll need to install Python 3.7+.
 
 You'll also need to install a few Python modules.
 ```
