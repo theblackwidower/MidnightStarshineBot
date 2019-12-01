@@ -14,8 +14,7 @@ async def on_ready():
     print(f'Successfully connected to the following servers:')
 
     for guild in client.guilds:
-        print(f'{guild.name}(id: {guild.id})'
-        )
+        print(f'{guild.name}(id: {guild.id})')
 
 
 client.run(token)
