@@ -8,6 +8,8 @@ This bot is planned to have many functions, all coded directly in the bot.
 
 First of all, you'll need a Discord Bot Token. This is how the bot logs into Discord.
 
+If you don't have a bot token, you can get one here: [Discord Developers Portal](https://discordapp.com/developers/applications)
+
 With that, add a new file in the bot's root folder named `.env`. (The dot at the beginning is very important.)
 
 This file should contain the following code:
