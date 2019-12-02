@@ -3,7 +3,12 @@ import os
 import discord
 from dotenv import load_dotenv
 
+COMMAND_PREFIX = "ms!"
+
 IS_EMOJI_CENSOR_ENABLED = True
+IS_ECHO_ENABLED = True
+
+ECHO_COMMAND = "say"
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -21,6 +26,7 @@ async def on_ready():
 @client.event
 async def on_message(message):
     await emoji_censor(message)
+    await echo(message)
 
 @client.event
 async def on_message_edit(old_message, message):
@@ -53,6 +59,13 @@ async def emoji_censor(message):
         messageLength = len(content)
 
         if (emojiCount > 0 and (messageLength < 3 or messageLength <= emojiCount)):
+            await message.delete()
+
+async def echo(message):
+    if IS_ECHO_ENABLED:
+        if message.content.startswith(COMMAND_PREFIX + ECHO_COMMAND + " "):
+            echo = message.content[len(COMMAND_PREFIX + ECHO_COMMAND + " "):]
+            await message.channel.send(echo)
             await message.delete()
 
 client.run(token)
