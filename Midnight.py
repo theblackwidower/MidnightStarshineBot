@@ -3,12 +3,15 @@ import os
 import discord
 from dotenv import load_dotenv
 
+import array
+
 COMMAND_PREFIX = "ms!"
 
 IS_EMOJI_CENSOR_ENABLED = True
 IS_ECHO_ENABLED = True
 
 ECHO_COMMAND = "say"
+ROLECALL_COMMAND = "rolecall"
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -27,6 +30,7 @@ async def on_ready():
 async def on_message(message):
     await emoji_censor(message)
     await echo(message)
+    await rolecall(message)
 
 @client.event
 async def on_message_edit(old_message, message):
@@ -67,5 +71,38 @@ async def echo(message):
             echo = message.content[len(COMMAND_PREFIX + ECHO_COMMAND + " "):]
             await message.channel.send(echo)
             await message.delete()
+
+async def rolecall(message):
+    if message.content.startswith(COMMAND_PREFIX + ROLECALL_COMMAND):
+        content = message.content[len(COMMAND_PREFIX + ROLECALL_COMMAND):].strip()
+        scannedRole = 0
+        if len(content) > 0:
+            for role in message.channel.guild.roles:
+                if role.name == content:
+                    scannedRole = role
+                    break
+            if scannedRole == 0:
+                await message.channel.send("Invalid role name.")
+                return
+        users = 0
+        if scannedRole == 0:
+            users = message.channel.guild.members
+        else:
+            users = scannedRole.members
+
+        index = [""]
+        roles = message.channel.guild.roles
+        for role in roles:
+            index.append("")
+
+        for user in users:
+            index[user.top_role.position] += user.mention + "\n"
+
+        output = "**RoleCall**\n"
+        for i in range(len(index) - 1, -1, -1):
+            if len(index[i]) > 0:
+                output += roles[i].name + ":\n" + index[i] + "\n"
+
+        await message.channel.send(output)
 
 client.run(token)
