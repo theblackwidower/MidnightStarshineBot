@@ -20,6 +20,13 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    await emoji_censor(message)
+
+@client.event
+async def on_message_edit(old_message, message):
+    await emoji_censor(message)
+
+async def emoji_censor(message):
     if IS_EMOJI_CENSOR_ENABLED:
         content = message.content
 
