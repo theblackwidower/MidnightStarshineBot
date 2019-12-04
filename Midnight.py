@@ -10,6 +10,8 @@ COMMAND_PREFIX = "ms!"
 IS_EMOJI_CENSOR_ENABLED = True
 IS_ECHO_ENABLED = True
 
+ECHO_USER = 204818040628576256
+
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 
@@ -67,7 +69,7 @@ async def emoji_censor(message):
 
 async def echo(message):
     if IS_ECHO_ENABLED:
-        if message.content.startswith(COMMAND_PREFIX + ECHO_COMMAND + " "):
+        if message.content.startswith(COMMAND_PREFIX + ECHO_COMMAND + " ") and message.author.id == ECHO_USER:
             echo = message.content[len(COMMAND_PREFIX + ECHO_COMMAND + " "):]
             await message.channel.send(echo)
             await message.delete()
