@@ -9,11 +9,14 @@ COMMAND_PREFIX = "ms!"
 
 IS_EMOJI_CENSOR_ENABLED = True
 IS_ECHO_ENABLED = True
+IS_YAG_SNIPE_ENABLED = True
 
 ECHO_USER = 204818040628576256
 
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
+
+YAG_ID = 204255221017214977
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -27,6 +30,19 @@ async def on_ready():
 
     for guild in client.guilds:
         print(f'{guild.name}(id: {guild.id})')
+        await yagSnipe(guild.get_member(YAG_ID))
+
+@client.event
+async def on_member_join(member):
+    await yagSnipe(member)
+
+@client.event
+async def on_guild_join(server):
+    await yagSnipe(server.get_member(YAG_ID))
+
+@client.event
+async def on_guild_role_update(before, after):
+    await yagSnipe(after.guild.get_member(YAG_ID))
 
 @client.event
 async def on_message(message):
@@ -110,5 +126,17 @@ async def rolecall(message):
                 output += "*" + roles[i].name + "*:\n" + index[i] + "\n"
 
         await message.channel.send(output)
+
+async def yagSnipe(member):
+    if IS_YAG_SNIPE_ENABLED and member is not None and member.id == YAG_ID:
+        permissions = member.guild.me.guild_permissions
+        if member.top_role.position >= member.guild.me.top_role.position:
+            print("Can't kick " + member.name + " in " + member.guild.name + ". Too low a role.")
+        elif permissions.ban_members or permissions.administrator:
+            await member.ban(reason="Being a shit bot.", delete_message_days=0)
+        elif permissions.kick_members:
+            await member.kick(reason="Being a shit bot.")
+        else:
+            print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
 
 client.run(token)
