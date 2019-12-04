@@ -75,7 +75,7 @@ async def echo(message):
             await message.delete()
 
 async def rolecall(message):
-    if message.content.startswith(COMMAND_PREFIX + ROLECALL_COMMAND):
+    if message.content.startswith(COMMAND_PREFIX + ROLECALL_COMMAND) and message.author.permissions_in(message.channel).manage_guild:
         content = message.content[len(COMMAND_PREFIX + ROLECALL_COMMAND):].strip()
         scannedRole = 0
         if len(content) > 0:
