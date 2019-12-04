@@ -98,12 +98,16 @@ async def rolecall(message):
             index.append("")
 
         for user in users:
-            index[user.top_role.position] += user.mention + "\n"
+            if (user.nick is None):
+                name = user.name
+            else:
+                name = user.nick + " (" + user.name + ")"
+            index[user.top_role.position] += "   " + name + "\n"
 
         output = "**RoleCall**\n"
         for i in range(len(index) - 1, -1, -1):
             if len(index[i]) > 0:
-                output += roles[i].name + ":\n" + index[i] + "\n"
+                output += "*" + roles[i].name + "*:\n" + index[i] + "\n"
 
         await message.channel.send(output)
 
