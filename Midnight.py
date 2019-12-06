@@ -3,8 +3,6 @@ import os
 import discord
 from dotenv import load_dotenv
 
-import array
-
 COMMAND_PREFIX = "ms!"
 
 IS_EMOJI_CENSOR_ENABLED = True
