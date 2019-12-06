@@ -45,8 +45,9 @@ async def on_guild_role_update(before, after):
 @client.event
 async def on_message(message):
     await emoji_censor(message)
-    await echo(message)
-    await rolecall(message)
+    if message.content.startswith(COMMAND_PREFIX):
+        await echo(message)
+        await rolecall(message)
 
 @client.event
 async def on_message_edit(old_message, message):
@@ -83,14 +84,15 @@ async def emoji_censor(message):
 
 async def echo(message):
     if IS_ECHO_ENABLED:
-        if message.content.startswith(COMMAND_PREFIX + ECHO_COMMAND + " ") and message.author.id == ECHO_USER:
-            echo = message.content[len(COMMAND_PREFIX + ECHO_COMMAND + " "):]
-            await message.channel.send(echo)
+        parsing = message.content.partition(" ")
+        if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id == ECHO_USER:
+            await message.channel.send(parsing[2])
             await message.delete()
 
 async def rolecall(message):
-    if message.content.startswith(COMMAND_PREFIX + ROLECALL_COMMAND) and message.author.permissions_in(message.channel).manage_guild:
-        content = message.content[len(COMMAND_PREFIX + ROLECALL_COMMAND):].strip()
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + ROLECALL_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        content = parsing[2].strip()
         scannedRole = 0
         if len(content) > 0:
             for role in message.channel.guild.roles:
