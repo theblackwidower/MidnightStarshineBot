@@ -37,10 +37,10 @@ $ python Midnight.py
   * Echo feature (limited to access by a single user, me... can be customized)
   * Rolecall, lists all users (can be filtered by role) sorted by whatever their top role is.
   * YAG Snipe, automatically kicks or bans a specified user, designed to deal with problems related to the bot YAGPDB.xyz.
+  * Active user feature assigns custom roles based on user activity rates
 
 ## Upcoming Features
 
   * On-the-fly rule lookup
   * Currency system ('payday' command)
-  * Custom role assignment based on user activity rates
   * Time-delayed echo

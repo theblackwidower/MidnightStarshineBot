@@ -3,6 +3,8 @@ import os
 import discord
 from dotenv import load_dotenv
 
+import datetime
+
 COMMAND_PREFIX = "ms!"
 
 IS_EMOJI_CENSOR_ENABLED = True
@@ -15,6 +17,14 @@ ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 
 YAG_ID = 204255221017214977
+
+ACTIVE_ROLE = 635253363440877599
+
+activeRecordLast = dict()
+activeRecordStart = dict()
+
+ACTIVE_GAP = datetime.timedelta(seconds=30)
+ACTIVE_DURATION = datetime.timedelta(minutes=5)
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -48,6 +58,8 @@ async def on_message(message):
     if message.content.startswith(COMMAND_PREFIX):
         await echo(message)
         await rolecall(message)
+    if not isActive(message.author):
+        await checkActive(message)
 
 @client.event
 async def on_message_edit(old_message, message):
@@ -138,5 +150,25 @@ async def yagSnipe(member):
             await member.kick(reason="Being a shit bot.")
         else:
             print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
+
+def isActive(member):
+    try:
+        member.roles.index(member.guild.get_role(ACTIVE_ROLE))
+        return True
+    except ValueError:
+        return False
+
+async def checkActive(message):
+    try:
+        lastMessageTime = activeRecordLast[message.author.id]
+        if message.created_at <= lastMessageTime + ACTIVE_GAP:
+            startMessageTime = activeRecordStart[message.author.id]
+            if message.created_at >= startMessageTime + ACTIVE_DURATION:
+                await message.author.add_roles(message.guild.get_role(ACTIVE_ROLE))
+        else:
+            activeRecordStart[message.author.id] = message.created_at
+    except KeyError:
+        activeRecordStart[message.author.id] = message.created_at
+    activeRecordLast[message.author.id] = message.created_at
 
 client.run(token)
