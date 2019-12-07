@@ -135,7 +135,7 @@ async def rolecall(message):
         output = "**RoleCall**\n"
         for i in range(len(index) - 1, -1, -1):
             if len(index[i]) > 0:
-                output += "*" + roles[i].name + "*:\n" + index[i] + "\n"
+                output += "*" + discord.utils.escape_mentions(roles[i].name) + "*:\n" + index[i] + "\n"
 
         await message.channel.send(output)
 
