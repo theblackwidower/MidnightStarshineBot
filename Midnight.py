@@ -10,6 +10,7 @@ COMMAND_PREFIX = "ms!"
 IS_EMOJI_CENSOR_ENABLED = True
 IS_ECHO_ENABLED = True
 IS_YAG_SNIPE_ENABLED = True
+IS_RYLAN_SNIPE_ENABLED = True
 
 ECHO_USER = 204818040628576256
 
@@ -17,6 +18,7 @@ ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 
 YAG_ID = 204255221017214977
+RYLAN_NAME = 'rylan'
 
 ACTIVE_ROLE = 635253363440877599
 
@@ -39,18 +41,26 @@ async def on_ready():
     for guild in client.guilds:
         print(f'{guild.name}(id: {guild.id})')
         await yagSnipe(guild.get_member(YAG_ID))
+        await rylanSnipeServer(guild)
 
 @client.event
 async def on_member_join(member):
     await yagSnipe(member)
+    await rylanSnipe(member)
 
 @client.event
 async def on_guild_join(server):
     await yagSnipe(server.get_member(YAG_ID))
+    await rylanSnipeServer(server)
 
 @client.event
 async def on_guild_role_update(before, after):
     await yagSnipe(after.guild.get_member(YAG_ID))
+    await rylanSnipeServer(after.guild)
+
+@client.event
+async def on_member_update(before, after):
+    await rylanSnipe(after)
 
 @client.event
 async def on_message(message):
@@ -148,6 +158,28 @@ async def yagSnipe(member):
             await member.ban(reason="Being a shit bot.", delete_message_days=0)
         elif permissions.kick_members:
             await member.kick(reason="Being a shit bot.")
+        else:
+            print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
+
+async def rylanSnipeServer(server):
+    if IS_RYLAN_SNIPE_ENABLED:
+        for member in server.members:
+            if member.display_name == RYLAN_NAME:
+                await rylanSnipe(member)
+
+async def rylanSnipe(member):
+    if IS_RYLAN_SNIPE_ENABLED and member is not None and member.display_name == RYLAN_NAME:
+        permissions = member.guild.me.guild_permissions
+        if member.top_role.position >= member.guild.me.top_role.position:
+            print("Can't kick " + member.name + " in " + member.guild.name + ". Too low a role.")
+        elif permissions.ban_members or permissions.administrator:
+            await member.create_dm()
+            await member.dm_channel.send("TOO MANY RYLANS!!!")
+            await member.ban(reason="Too many rylans.", delete_message_days=0)
+        elif permissions.kick_members:
+            await member.create_dm()
+            await member.dm_channel.send("TOO MANY RYLANS!!!")
+            await member.kick(reason="Too many rylans.")
         else:
             print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
 
