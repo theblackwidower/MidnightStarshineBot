@@ -227,7 +227,7 @@ async def purgeActiveMember(member):
     if lastMessageTime is None:
         print("Running backup code in purgeActive")
         for channel in member.guild.channels:
-            if isinstance(channel, discord.channel.TextChannel):
+            if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
                 memberMessages = []
                 async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
                     if message.author == member:
