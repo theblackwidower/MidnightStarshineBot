@@ -64,7 +64,7 @@ async def on_guild_role_update(before, after):
 @client.event
 async def on_member_update(before, after):
     await rylanSnipe(after)
-    if isinstance(after, discord.Member) and not after.bot and isActive(after):
+    if after.guild.get_role(ACTIVE_ROLE) is not None and isinstance(after, discord.Member) and not after.bot and isActive(after):
         await purgeActiveMember(after)
 
 @client.event
@@ -209,8 +209,10 @@ async def checkActive(message):
     activeRecordLast[message.author.id] = message.created_at
 
 async def purgeActiveServer(server):
-    for member in server.get_role(ACTIVE_ROLE).members:
-        await purgeActiveMember(member)
+    activeRole = server.get_role(ACTIVE_ROLE)
+    if activeRole is not None:
+        for member in activeRole.members:
+            await purgeActiveMember(member)
 
 async def purgeActiveMember(member):
     threshold = datetime.datetime.now() - ACTIVE_MAX
