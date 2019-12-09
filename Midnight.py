@@ -28,6 +28,8 @@ activeRecordStart = dict()
 ACTIVE_GAP = datetime.timedelta(seconds=30)
 ACTIVE_DURATION = datetime.timedelta(minutes=5)
 
+ACTIVE_MAX = datetime.timedelta(days=3)
+
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 
@@ -42,6 +44,7 @@ async def on_ready():
         print(f'{guild.name}(id: {guild.id})')
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
+        await purgeActiveServer(guild)
 
 @client.event
 async def on_member_join(member):
@@ -61,6 +64,8 @@ async def on_guild_role_update(before, after):
 @client.event
 async def on_member_update(before, after):
     await rylanSnipe(after)
+    if isinstance(after, discord.Member) and not after.bot and isActive(after):
+        await purgeActiveMember(after)
 
 @client.event
 async def on_message(message):
@@ -202,5 +207,38 @@ async def checkActive(message):
     except KeyError:
         activeRecordStart[message.author.id] = message.created_at
     activeRecordLast[message.author.id] = message.created_at
+
+async def purgeActiveServer(server):
+    for member in server.get_role(ACTIVE_ROLE).members:
+        await purgeActiveMember(member)
+
+async def purgeActiveMember(member):
+    threshold = datetime.datetime.now() - ACTIVE_MAX
+
+    history = await member.history(limit=1, oldest_first=False).flatten()
+    try:
+        lastMessageTime = history[0].created_at
+    except IndexError:
+        lastMessageTime = None
+
+    # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
+    if lastMessageTime is None:
+        print("Running backup code in purgeActive")
+        for channel in member.guild.channels:
+            if isinstance(channel, discord.channel.TextChannel):
+                memberMessages = []
+                async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
+                    if message.author == member:
+                        memberMessages.append(message)
+                for message in memberMessages:
+                    if lastMessageTime is None:
+                        lastMessageTime = message.created_at
+                    elif lastMessageTime < message.created_at:
+                        lastMessageTime = message.created_at
+        if lastMessageTime is None:
+            lastMessageTime = threshold
+
+    if lastMessageTime <= threshold:
+        await member.remove_roles(member.guild.get_role(ACTIVE_ROLE))
 
 client.run(token)
