@@ -68,7 +68,7 @@ async def on_message(message):
     if message.content.startswith(COMMAND_PREFIX):
         await echo(message)
         await rolecall(message)
-    if not message.author.bot and not isActive(message.author):
+    if isinstance(message.author, discord.Member) and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
 @client.event
