@@ -30,6 +30,7 @@ ACTIVE_GAP = datetime.timedelta(seconds=30)
 ACTIVE_DURATION = datetime.timedelta(minutes=5)
 
 ACTIVE_MAX = datetime.timedelta(days=3)
+ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -221,34 +222,35 @@ async def purgeActiveMember(member):
     except KeyError:
         lastCheck = None
 
-    threshold = datetime.datetime.now() - ACTIVE_MAX
+    if lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now():
+        threshold = datetime.datetime.now() - ACTIVE_MAX
 
-    history = await member.history(limit=1, oldest_first=False).flatten()
-    try:
-        lastMessageTime = history[0].created_at
-    except IndexError:
-        lastMessageTime = None
+        history = await member.history(limit=1, oldest_first=False).flatten()
+        try:
+            lastMessageTime = history[0].created_at
+        except IndexError:
+            lastMessageTime = None
 
-    # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
-    if lastMessageTime is None:
-        print("Running purgeActive backup code in " + member.guild.name + " on " + str(member) + " at " + datetime.datetime.now().isoformat())
-        for channel in member.guild.channels:
-            if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
-                memberMessages = []
-                async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
-                    if message.author == member:
-                        memberMessages.append(message)
-                for message in memberMessages:
-                    if lastMessageTime is None:
-                        lastMessageTime = message.created_at
-                    elif lastMessageTime < message.created_at:
-                        lastMessageTime = message.created_at
+        # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
         if lastMessageTime is None:
-            lastMessageTime = threshold
+            print("Running purgeActive backup code in " + member.guild.name + " on " + str(member) + " at " + datetime.datetime.now().isoformat())
+            for channel in member.guild.channels:
+                if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
+                    memberMessages = []
+                    async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
+                        if message.author == member:
+                            memberMessages.append(message)
+                    for message in memberMessages:
+                        if lastMessageTime is None:
+                            lastMessageTime = message.created_at
+                        elif lastMessageTime < message.created_at:
+                            lastMessageTime = message.created_at
+            if lastMessageTime is None:
+                lastMessageTime = threshold
 
-    if lastMessageTime <= threshold:
-        await member.remove_roles(member.guild.get_role(ACTIVE_ROLE))
-    else:
-        activeCheckTime[member.id] = datetime.datetime.now()
+        if lastMessageTime <= threshold:
+            await member.remove_roles(member.guild.get_role(ACTIVE_ROLE))
+        else:
+            activeCheckTime[member.id] = datetime.datetime.now()
 
 client.run(token)
