@@ -225,7 +225,7 @@ async def purgeActiveMember(member):
 
     # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
     if lastMessageTime is None:
-        print("Running backup code in purgeActive")
+        print("Running purgeActive backup code in " + member.guild.name + " on " + str(member) + " at " + datetime.datetime.now().isoformat())
         for channel in member.guild.channels:
             if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
                 memberMessages = []
