@@ -24,6 +24,7 @@ ACTIVE_ROLE = 635253363440877599
 
 activeRecordLast = dict()
 activeRecordStart = dict()
+activeCheckTime = dict()
 
 ACTIVE_GAP = datetime.timedelta(seconds=30)
 ACTIVE_DURATION = datetime.timedelta(minutes=5)
@@ -215,6 +216,11 @@ async def purgeActiveServer(server):
             await purgeActiveMember(member)
 
 async def purgeActiveMember(member):
+    try:
+        lastCheck = activeCheckTime[member.id]
+    except KeyError:
+        lastCheck = None
+
     threshold = datetime.datetime.now() - ACTIVE_MAX
 
     history = await member.history(limit=1, oldest_first=False).flatten()
@@ -242,5 +248,7 @@ async def purgeActiveMember(member):
 
     if lastMessageTime <= threshold:
         await member.remove_roles(member.guild.get_role(ACTIVE_ROLE))
+    else:
+        activeCheckTime[member.id] = datetime.datetime.now()
 
 client.run(token)
