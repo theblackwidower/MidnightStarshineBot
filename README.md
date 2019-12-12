@@ -26,7 +26,7 @@ $ pip install -U discord.py
 $ pip install -U python-dotenv
 ```
 
-Finally, you'll need to set up an SQLite database. Place the database file in the same folder as Midnight.py, and name it Midnight.db. Then initialize it with the SQL scripts in the SQL folder.
+Finally, you'll need to set up an SQLite database. Place the database file in the same folder as Midnight.py, and name it `Midnight.db`. Then initialize it with the contents of `Midnight.sql`.
 
 From here, running the bot is simple:
 ```
