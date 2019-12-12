@@ -4,8 +4,12 @@ import discord
 from dotenv import load_dotenv
 
 import datetime
+import sqlite3
+import math
 
 COMMAND_PREFIX = "ms!"
+
+DATABASE_LOCATION='Midnight.db'
 
 IS_EMOJI_CENSOR_ENABLED = True
 IS_ECHO_ENABLED = True
@@ -16,6 +20,10 @@ ECHO_USER = 204818040628576256
 
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
+PAYDAY_COMMAND = "payday"
+
+PAYDAY_AMOUNT = 250
+PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
 
 YAG_ID = 204255221017214977
 RYLAN_NAME = 'rylan'
@@ -75,6 +83,7 @@ async def on_message(message):
     if message.content.startswith(COMMAND_PREFIX):
         await echo(message)
         await rolecall(message)
+        await payday(message)
     if isinstance(message.author, discord.Member) and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
@@ -252,5 +261,56 @@ async def purgeActiveMember(member):
             await member.remove_roles(member.guild.get_role(ACTIVE_ROLE))
         else:
             activeCheckTime[member.id] = datetime.datetime.now()
+
+async def payday(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND:
+        conn = sqlite3.connect(DATABASE_LOCATION)
+
+        c = conn.cursor()
+        c.execute('SELECT funds, last_payday FROM tbl_currency WHERE server_id = ? AND member_id = ?', (message.guild.id, message.author.id))
+        data = c.fetchone()
+        if data is None:
+            currentFunds = PAYDAY_AMOUNT
+            c.execute('INSERT INTO tbl_currency VALUES (?, ?, ?, ?)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
+            await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
+
+        else:
+            currentFunds = data[0]
+            lastPayday = datetime.datetime.fromtimestamp(data[1])
+            currentTime = datetime.datetime.now()
+            if lastPayday + PAYDAY_COOLDOWN < currentTime:
+                currentFunds += PAYDAY_AMOUNT
+                c.execute('UPDATE tbl_currency SET funds = ?, last_payday = ? WHERE server_id = ? AND member_id = ?', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
+                await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
+            else:
+                timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime
+                totalSeconds = timeLeft.total_seconds()
+                hours = math.floor(totalSeconds // (60 * 60))
+                minutes = math.floor(totalSeconds // 60) % 60
+                seconds = math.floor(totalSeconds % 60)
+
+                totalTimeParts = []
+                if hours > 0:
+                    totalTimeParts.append(str(hours) + " hours")
+                if minutes > 0:
+                    totalTimeParts.append(str(minutes) + " minutes")
+                if seconds > 0:
+                    totalTimeParts.append(str(seconds) + " seconds")
+
+                if len(totalTimeParts) == 1:
+                    totalTimeString = totalTimeParts[0]
+                elif len(totalTimeParts) == 2:
+                    totalTimeString = totalTimeParts[0] + " and " + totalTimeParts[1]
+                elif len(totalTimeParts) == 3:
+                    totalTimeString = totalTimeParts[0] + ", " + totalTimeParts[1] + " and " + totalTimeParts[2]
+                else:
+                    raise Exception("Invalid number of totalTimeParts: " + len(totalTimeParts))
+
+                await message.channel.send(message.author.mention + "! Please wait another " + totalTimeString + " before attempting another payday.")
+
+
+        conn.commit()
+        conn.close()
 
 client.run(token)
