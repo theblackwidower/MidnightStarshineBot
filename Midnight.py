@@ -46,6 +46,8 @@ RULE_GET_COMMAND = "getrule"
 RULE_SET_COMMAND = "setrule"
 RULE_EDIT_COMMAND = "editrule"
 RULE_DELETE_COMMAND = "deleterule"
+RULE_GET_ALL_COMMAND = "getallrules"
+RULE_GET_BACKUP_COMMAND = "getrulebackup"
 
 PAYDAY_AMOUNT = 250
 PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
@@ -118,6 +120,8 @@ async def on_message(message):
         await getRule(message)
         await editRule(message)
         await deleteRule(message)
+        await getAllRules(message)
+        await getRuleBackup(message)
     if isinstance(message.author, discord.Member) and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
@@ -150,6 +154,9 @@ async def help(message):
             output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
             output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
             output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
+        output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
 
         await message.channel.send(output)
 
@@ -471,5 +478,44 @@ async def deleteRule(message):
                 await message.channel.send("There is no rule #" + parsing[2])
         else:
             await message.channel.send("Please provide a valid number.")
+
+async def getAllRules(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
+        server_id = message.guild.id
+        conn = sqlite3.connect(DATABASE_LOCATION)
+        c = conn.cursor()
+        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+        data = c.fetchall()
+        count = len(data)
+        output = "**SERVER RULES** for " + message.guild.name + ":"
+        for i in range(count):
+            output += "\nRule #" + str(i + 1) + ": " + data[i][0]
+        await message.author.create_dm()
+        await message.author.dm_channel.send(output)
+
+        await message.channel.send(message.author.mention + "! A copy of the complete server rules have been sent to your DMs.")
+        conn.commit()
+        conn.close()
+
+async def getRuleBackup(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        server_id = message.guild.id
+        conn = sqlite3.connect(DATABASE_LOCATION)
+        c = conn.cursor()
+        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+        data = c.fetchall()
+        count = len(data)
+        output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
+        for i in range(count):
+            output += "\n" + COMMAND_PREFIX + RULE_SET_COMMAND + " " + data[i][0]
+        output += "```"
+        await message.author.create_dm()
+        await message.author.dm_channel.send(output)
+
+        await message.channel.send(message.author.mention + "! A backup of the complete server rules has been sent to your DMs.")
+        conn.commit()
+        conn.close()
 
 client.run(token)
