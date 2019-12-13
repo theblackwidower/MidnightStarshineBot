@@ -22,6 +22,11 @@ ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 PAYDAY_COMMAND = "payday"
 
+RULE_GET_COMMAND = "getrule"
+RULE_SET_COMMAND = "setrule"
+RULE_EDIT_COMMAND = "editrule"
+RULE_DELETE_COMMAND = "deleterule"
+
 PAYDAY_AMOUNT = 250
 PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
 
@@ -84,6 +89,10 @@ async def on_message(message):
         await echo(message)
         await rolecall(message)
         await payday(message)
+        await setRule(message)
+        await getRule(message)
+        await editRule(message)
+        await deleteRule(message)
     if isinstance(message.author, discord.Member) and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
@@ -312,5 +321,97 @@ async def payday(message):
 
         conn.commit()
         conn.close()
+
+async def setRule(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND:
+        conn = sqlite3.connect(DATABASE_LOCATION)
+
+        server_id = message.guild.id
+        c = conn.cursor()
+        c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?);', (server_id, parsing[2]))
+        c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = ?', (server_id,))
+        data = c.fetchone()
+        await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
+
+        conn.commit()
+        conn.close()
+
+async def getRule(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
+        if parsing[2].isdigit():
+            conn = sqlite3.connect(DATABASE_LOCATION)
+            server_id = message.guild.id
+            c = conn.cursor()
+            c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+            data = c.fetchall()
+            count = len(data)
+            rule_num = int(parsing[2])
+            if rule_num <= count and rule_num > 0:
+                await message.channel.send("Rule #" + parsing[2] + ": " + data[rule_num - 1][0])
+            else:
+                await message.channel.send("There is no rule #" + parsing[2])
+            conn.commit()
+            conn.close()
+        else:
+            await message.channel.send("Please provide a valid number.")
+
+
+async def getRuleId(server_id, rule_num):
+    conn = sqlite3.connect(DATABASE_LOCATION)
+
+    c = conn.cursor()
+    c.execute('SELECT id FROM tbl_rules WHERE server = ?', (server_id,))
+    data = c.fetchall()
+    count = len(data)
+    if rule_num <= count and rule_num > 0:
+        returnValue = data[rule_num - 1][0]
+    else:
+        returnValue = None
+
+    conn.commit()
+    conn.close()
+
+    return returnValue
+
+async def editRule(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_EDIT_COMMAND:
+        parsing = parsing[2].partition(" ")
+        if parsing[0].isdigit():
+            server_id = message.guild.id
+            rule_num = int(parsing[0])
+            rule_id = await getRuleId(server_id, rule_num)
+            if rule_id is not None:
+                conn = sqlite3.connect(DATABASE_LOCATION)
+                c = conn.cursor()
+                c.execute('UPDATE tbl_rules SET content = ? WHERE id = ?', (parsing[2], rule_id))
+                conn.commit()
+                conn.close()
+                await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
+            else:
+                await message.channel.send("There is no rule #" + parsing[0])
+        else:
+            await message.channel.send("Please provide a valid number.")
+
+async def deleteRule(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_DELETE_COMMAND:
+        if parsing[2].isdigit():
+            server_id = message.guild.id
+            rule_num = int(parsing[2])
+            rule_id = await getRuleId(server_id, rule_num)
+            if rule_id is not None:
+                conn = sqlite3.connect(DATABASE_LOCATION)
+                c = conn.cursor()
+                c.execute('DELETE FROM tbl_rules WHERE id = ?', (rule_id,))
+                conn.commit()
+                conn.close()
+                await message.channel.send("Rule #" + parsing[2] + " has been deleted")
+            else:
+                await message.channel.send("There is no rule #" + parsing[2])
+        else:
+            await message.channel.send("Please provide a valid number.")
 
 client.run(token)
