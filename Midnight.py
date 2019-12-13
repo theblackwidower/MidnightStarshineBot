@@ -25,6 +25,11 @@ import datetime
 import sqlite3
 import math
 
+import sys
+import traceback
+
+ERROR_LOG = "MidnightError.log"
+
 COMMAND_PREFIX = "ms!"
 
 DATABASE_LOCATION='Midnight.db'
@@ -86,6 +91,22 @@ async def on_ready():
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
         await purgeActiveServer(guild)
+
+@client.event
+async def on_error(self, event_method, *args, **kwargs):
+    log = open(ERROR_LOG,"a+")
+    log.write("\n\nException occurred at " + datetime.datetime.now().isoformat() + ":\n")
+    log.write('Ignoring exception in {}'.format(event_method) + "\n")
+    log.write(traceback.format_exc())
+    log.close()
+
+    master = client.get_user(ECHO_USER)
+    await master.create_dm()
+    await master.dm_channel.send("Encountered an exception. Check logs at: " + datetime.datetime.now().isoformat())
+
+    # Copy of parent code from client.py
+    print('Ignoring exception in {}'.format(event_method), file=sys.stderr)
+    traceback.print_exc()
 
 @client.event
 async def on_member_join(member):

@@ -1,2 +1,3 @@
 .env
 Midnight.db
+MidnightError.log
