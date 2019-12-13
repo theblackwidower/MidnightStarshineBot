@@ -19,6 +19,7 @@ IS_PAYDAY_ENABLED = False
 
 ECHO_USER = 204818040628576256
 
+HELP_COMMAND = "help"
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 PAYDAY_COMMAND = "payday"
@@ -87,6 +88,7 @@ async def on_member_update(before, after):
 async def on_message(message):
     await emoji_censor(message)
     if message.content.startswith(COMMAND_PREFIX):
+        await help(message)
         await echo(message)
         await rolecall(message)
         await payday(message)
@@ -100,6 +102,34 @@ async def on_message(message):
 @client.event
 async def on_message_edit(old_message, message):
     await emoji_censor(message)
+
+async def help(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
+        isManagePerms = message.author.permissions_in(message.channel).manage_guild
+
+        output = "Hello, I am Midnight Starshine. Your friendly neighbourhood Discord bot. Here to help in any way I can.\n"
+        output += "Would you like to take a look at my full source code? Naughty...\n"
+        output += "It's available at <https://github.com/theblackwidower/MidnightStarshineBot>, and I'm licenced under the GNU AGPL version 3.\n"
+        output += "If you're not sure what that means, don't worry, I'm not sure I understand either.\n"
+
+        output += "\n**COMMANDS:**\n"
+        output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
+        if message.author.id == ECHO_USER and IS_ECHO_ENABLED:
+            output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+        if IS_PAYDAY_ENABLED:
+            output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
+        elif message.guild.id == 587508374820618240:
+            output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will output a message reminding people that the payday command was a really stupid idea.\n"
+        output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
+            output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
+            output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
+
+        await message.channel.send(output)
 
 async def emoji_censor(message):
     if IS_EMOJI_CENSOR_ENABLED:
