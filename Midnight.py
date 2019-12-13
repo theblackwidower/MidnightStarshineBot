@@ -324,7 +324,7 @@ async def payday(message):
 
 async def setRule(message):
     parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND:
+    if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         conn = sqlite3.connect(DATABASE_LOCATION)
 
         server_id = message.guild.id
@@ -377,7 +377,7 @@ async def getRuleId(server_id, rule_num):
 
 async def editRule(message):
     parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_EDIT_COMMAND:
+    if parsing[0] == COMMAND_PREFIX + RULE_EDIT_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         parsing = parsing[2].partition(" ")
         if parsing[0].isdigit():
             server_id = message.guild.id
@@ -397,7 +397,7 @@ async def editRule(message):
 
 async def deleteRule(message):
     parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_DELETE_COMMAND:
+    if parsing[0] == COMMAND_PREFIX + RULE_DELETE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         if parsing[2].isdigit():
             server_id = message.guild.id
             rule_num = int(parsing[2])
