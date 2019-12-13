@@ -428,13 +428,11 @@ async def getRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
         if parsing[2].isdigit():
             conn = sqlite3.connect(DATABASE_LOCATION)
-            server_id = message.guild.id
             c = conn.cursor()
-            c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+            c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
             data = c.fetchall()
-            count = len(data)
             rule_num = int(parsing[2])
-            if rule_num <= count and rule_num > 0:
+            if rule_num <= len(data) and rule_num > 0:
                 await message.channel.send("Rule #" + parsing[2] + ": " + data[rule_num - 1][0])
             else:
                 await message.channel.send("There is no rule #" + parsing[2])
@@ -450,8 +448,7 @@ async def getRuleId(server_id, rule_num):
     c = conn.cursor()
     c.execute('SELECT id FROM tbl_rules WHERE server = ?', (server_id,))
     data = c.fetchall()
-    count = len(data)
-    if rule_num <= count and rule_num > 0:
+    if rule_num <= len(data) and rule_num > 0:
         returnValue = data[rule_num - 1][0]
     else:
         returnValue = None
@@ -466,9 +463,7 @@ async def editRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_EDIT_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         parsing = parsing[2].partition(" ")
         if parsing[0].isdigit():
-            server_id = message.guild.id
-            rule_num = int(parsing[0])
-            rule_id = await getRuleId(server_id, rule_num)
+            rule_id = await getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
                 conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
@@ -485,9 +480,7 @@ async def deleteRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_DELETE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         if parsing[2].isdigit():
-            server_id = message.guild.id
-            rule_num = int(parsing[2])
-            rule_id = await getRuleId(server_id, rule_num)
+            rule_id = await getRuleId(message.guild.id, int(parsing[2]))
             if rule_id is not None:
                 conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
@@ -503,10 +496,9 @@ async def deleteRule(message):
 async def getAllRules(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
-        server_id = message.guild.id
         conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
-        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
         data = c.fetchall()
         count = len(data)
         output = "**SERVER RULES** for " + message.guild.name + ":"
@@ -522,10 +514,9 @@ async def getAllRules(message):
 async def getRuleBackup(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        server_id = message.guild.id
         conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
-        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
         data = c.fetchall()
         count = len(data)
         output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
