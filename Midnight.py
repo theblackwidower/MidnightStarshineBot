@@ -322,6 +322,12 @@ async def payday(message):
         conn.commit()
         conn.close()
 
+    elif message.guild.id == 587508374820618240 and parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and not IS_PAYDAY_ENABLED:
+        master = client.get_user(ECHO_USER)
+        await master.create_dm()
+        await master.dm_channel.send(str(message.author) + " attempted to run the payday command.")
+        await message.channel.send("The payday command has been disabled, because it was a terrible idea in the first place. Have a nice day.")
+
 async def setRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
