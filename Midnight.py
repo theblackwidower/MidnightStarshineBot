@@ -75,6 +75,10 @@ async def on_ready():
     print(f'{client.user} has connected to Discord!')
     print(f'Successfully connected to the following servers:')
 
+    status = COMMAND_PREFIX + HELP_COMMAND + " for the obvious."
+    activity = discord.Game(status)
+    await client.change_presence(activity=activity)
+
     for guild in client.guilds:
         print(f'{guild.name}(id: {guild.id})')
         await yagSnipe(guild.get_member(YAG_ID))
