@@ -1,7 +1,7 @@
 CREATE TABLE "tbl_currency" (
-	"server_id"	INTEGER,
-	"member_id"	INTEGER,
-	"funds"	INTEGER,
+	"server_id"	INTEGER NOT NULL,
+	"member_id"	INTEGER NOT NULL,
+	"funds"	INTEGER NOT NULL,
 	"last_payday"	INTEGER,
 	PRIMARY KEY("server_id","member_id")
 );

@@ -15,6 +15,7 @@ IS_EMOJI_CENSOR_ENABLED = True
 IS_ECHO_ENABLED = True
 IS_YAG_SNIPE_ENABLED = True
 IS_RYLAN_SNIPE_ENABLED = True
+IS_PAYDAY_ENABLED = False
 
 ECHO_USER = 204818040628576256
 
@@ -273,7 +274,7 @@ async def purgeActiveMember(member):
 
 async def payday(message):
     parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND:
+    if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and IS_PAYDAY_ENABLED:
         conn = sqlite3.connect(DATABASE_LOCATION)
 
         c = conn.cursor()
@@ -317,7 +318,6 @@ async def payday(message):
                     raise Exception("Invalid number of totalTimeParts: " + len(totalTimeParts))
 
                 await message.channel.send(message.author.mention + "! Please wait another " + totalTimeString + " before attempting another payday.")
-
 
         conn.commit()
         conn.close()
