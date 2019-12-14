@@ -189,7 +189,7 @@ async def help(message):
         await message.channel.send(output)
 
 async def emoji_censor(message):
-    if IS_EMOJI_CENSOR_ENABLED:
+    if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
         content = message.content
 
         emojiCount = 0
