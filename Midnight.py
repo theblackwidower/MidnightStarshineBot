@@ -54,6 +54,8 @@ RULE_EDIT_COMMAND = "editrule"
 RULE_DELETE_COMMAND = "deleterule"
 RULE_GET_ALL_COMMAND = "getallrules"
 RULE_GET_BACKUP_COMMAND = "getrulebackup"
+RULE_CHANNEL_SET_COMMAND = "setrulechannel"
+RULE_CHANNEL_CLEAR_COMMAND = "clearrulechannel"
 
 PAYDAY_AMOUNT = 250
 PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
@@ -145,6 +147,8 @@ async def on_message(message):
             await deleteRule(message)
             await getAllRules(message)
             await getRuleBackup(message)
+            await setRuleChannel(message)
+            await clearRuleChannel(message)
         elif isinstance(message.channel, discord.DMChannel):
             await clearDms(message)
     if isinstance(message.author, discord.Member) and message.guild.get_role(ACTIVE_ROLE) is not None and not message.author.bot and not isActive(message.author):
@@ -183,6 +187,8 @@ async def help(message):
             output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
+                output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
+                output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
         elif isinstance(message.channel, discord.DMChannel):
             output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
 
@@ -429,6 +435,7 @@ async def setRule(message):
 
         conn.commit()
         conn.close()
+        await updateRuleChannel(message)
 
 async def clearDms(message):
     parsing = message.content.partition(" ")
@@ -498,6 +505,7 @@ async def editRule(message):
                 c.execute('UPDATE tbl_rules SET content = ? WHERE id = ?', (parsing[2], rule_id))
                 conn.commit()
                 conn.close()
+                await updateRuleChannel(message)
                 await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
             else:
                 await message.channel.send("There is no rule #" + parsing[0])
@@ -515,6 +523,7 @@ async def deleteRule(message):
                 c.execute('DELETE FROM tbl_rules WHERE id = ?', (rule_id,))
                 conn.commit()
                 conn.close()
+                await updateRuleChannel(message)
                 await message.channel.send("Rule #" + parsing[2] + " has been deleted")
             else:
                 await message.channel.send("There is no rule #" + parsing[2])
@@ -557,5 +566,80 @@ async def getRuleBackup(message):
         await message.channel.send(message.author.mention + "! A backup of the complete server rules has been sent to your DMs.")
         conn.commit()
         conn.close()
+
+async def setRuleChannel(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        if parsing[2] == "":
+            await message.channel.send("Please specify a rule channel.")
+        elif len(message.channel_mentions) == 0:
+            await message.channel.send("Please specify a valid rule channel.")
+        else:
+            ruleChannel = message.channel_mentions[0]
+            server_id = message.guild.id
+            conn = sqlite3.connect(DATABASE_LOCATION)
+            c = conn.cursor()
+            c.execute('SELECT channel FROM tbl_rule_posting WHERE server = ?', (server_id,))
+            oldData = c.fetchone()
+            if oldData is not None and oldData[0] == ruleChannel.id:
+                await message.channel.send("The rules are already posted in that channel.")
+            else:
+                c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+                rulesData = c.fetchall()
+                count = len(rulesData)
+                ruleOutput = "**RULES:**"
+                for i in range(count):
+                    ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
+                ruleMessage = await ruleChannel.send(ruleOutput)
+                if oldData is None:
+                    c.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES (?, ?, ?);', (server_id, ruleChannel.id, ruleMessage.id))
+                else:
+                    c.execute('UPDATE tbl_rule_posting SET channel = ?, message = ? WHERE server = ?', (ruleChannel.id, ruleMessage.id, server_id))
+                await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
+            conn.commit()
+            conn.close()
+
+async def clearRuleChannel(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        server_id = message.guild.id
+        conn = sqlite3.connect(DATABASE_LOCATION)
+        c = conn.cursor()
+        c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = ?', (server_id,))
+        data = c.fetchone()
+        if data is None:
+            await message.channel.send("No rule postings recorded.")
+        else:
+            ruleChannel = message.guild.get_channel(data[0])
+            try:
+                ruleMessage = await ruleChannel.fetch_message(data[1])
+                await ruleMessage.delete()
+            except discord.errors.NotFound:
+                pass
+            c.execute('DELETE FROM tbl_rule_posting WHERE server = ?', (server_id,))
+            await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
+        conn.commit()
+        conn.close()
+
+async def updateRuleChannel(message):
+    server_id = message.guild.id
+    conn = sqlite3.connect(DATABASE_LOCATION)
+    c = conn.cursor()
+    c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = ?', (server_id,))
+    messageData = c.fetchone()
+    if messageData is not None:
+        try:
+            ruleMessage = await message.guild.get_channel(messageData[0]).fetch_message(messageData[1])
+            c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+            rulesData = c.fetchall()
+            count = len(rulesData)
+            ruleOutput = "**RULES:**"
+            for i in range(count):
+                ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
+            await ruleMessage.edit(content=ruleOutput)
+        except discord.errors.NotFound:
+            await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
+    conn.commit()
+    conn.close()
 
 client.run(token)

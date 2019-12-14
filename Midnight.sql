@@ -29,3 +29,10 @@ CREATE TABLE "tbl_rules" (
 	"server"	INTEGER NOT NULL,
 	"content"	TEXT NOT NULL
 );
+
+CREATE TABLE "tbl_rule_posting" (
+	"server"	INTEGER NOT NULL UNIQUE,
+	"channel"	INTEGER NOT NULL UNIQUE,
+	"message"	INTEGER UNIQUE,
+	PRIMARY KEY("server")
+);
