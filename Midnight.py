@@ -46,6 +46,7 @@ HELP_COMMAND = "help"
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 PAYDAY_COMMAND = "payday"
+CLEAR_DMS_COMMAND = "cleardms"
 
 RULE_GET_COMMAND = "getrule"
 RULE_SET_COMMAND = "setrule"
@@ -144,6 +145,8 @@ async def on_message(message):
             await deleteRule(message)
             await getAllRules(message)
             await getRuleBackup(message)
+        elif isinstance(message.channel, discord.DMChannel):
+            await clearDms(message)
     if isinstance(message.author, discord.Member) and message.guild.get_role(ACTIVE_ROLE) is not None and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
@@ -180,6 +183,8 @@ async def help(message):
             output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
+        elif isinstance(message.channel, discord.DMChannel):
+            output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
 
         await message.channel.send(output)
 
@@ -424,6 +429,27 @@ async def setRule(message):
 
         conn.commit()
         conn.close()
+
+async def clearDms(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + CLEAR_DMS_COMMAND:
+        meBot = message.channel.me
+        if parsing[2] == "":
+            async for thisMessage in message.channel.history(limit=1000000, oldest_first=False):
+                if thisMessage.author == meBot:
+                    await thisMessage.delete()
+            await message.channel.send("Cleared all DMs I sent to you.")
+        elif parsing[2].isdigit():
+            try:
+                thisMessage = await message.channel.fetch_message(int(parsing[2]))
+                if thisMessage.author == meBot:
+                    await thisMessage.delete()
+                else:
+                    await message.channel.send("This isn't my message.")
+            except discord.NotFound:
+                await message.channel.send("Message " + parsing[2] + " not found.")
+        else:
+            await message.channel.send("Not a valid message number.")
 
 async def getRule(message):
     parsing = message.content.partition(" ")
