@@ -144,7 +144,7 @@ async def on_message(message):
             await deleteRule(message)
             await getAllRules(message)
             await getRuleBackup(message)
-    if isinstance(message.author, discord.Member) and not message.author.bot and not isActive(message.author):
+    if isinstance(message.author, discord.Member) and message.guild.get_role(ACTIVE_ROLE) is not None and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
 @client.event
