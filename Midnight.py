@@ -84,7 +84,7 @@ async def on_ready():
     print(f'Successfully connected to the following servers:')
 
     status = COMMAND_PREFIX + HELP_COMMAND + " for the obvious."
-    activity = discord.Game(status)
+    activity = discord.Activity(type=discord.ActivityType.listening, name=status)
     await client.change_presence(activity=activity)
 
     for guild in client.guilds:
