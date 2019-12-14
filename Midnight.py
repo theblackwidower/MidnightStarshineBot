@@ -134,15 +134,16 @@ async def on_message(message):
     await emoji_censor(message)
     if message.content.startswith(COMMAND_PREFIX):
         await help(message)
-        await echo(message)
-        await rolecall(message)
-        await payday(message)
-        await setRule(message)
-        await getRule(message)
-        await editRule(message)
-        await deleteRule(message)
-        await getAllRules(message)
-        await getRuleBackup(message)
+        if isinstance(message.channel, discord.TextChannel):
+            await echo(message)
+            await rolecall(message)
+            await payday(message)
+            await setRule(message)
+            await getRule(message)
+            await editRule(message)
+            await deleteRule(message)
+            await getAllRules(message)
+            await getRuleBackup(message)
     if isinstance(message.author, discord.Member) and not message.author.bot and not isActive(message.author):
         await checkActive(message)
 
@@ -162,22 +163,23 @@ async def help(message):
 
         output += "\n**COMMANDS:**\n"
         output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
-        if message.author.id == ECHO_USER and IS_ECHO_ENABLED:
-            output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
-        if isManagePerms:
-            output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
-        if IS_PAYDAY_ENABLED:
-            output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
-        elif message.guild.id == 587508374820618240:
-            output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will output a message reminding people that the payday command was a really stupid idea.\n"
-        output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
-        if isManagePerms:
-            output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
-            output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
-            output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
-        output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
-        if isManagePerms:
-            output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
+        if isinstance(message.channel, discord.TextChannel):
+            if message.author.id == ECHO_USER and IS_ECHO_ENABLED:
+                output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
+            if isManagePerms:
+                output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+            if IS_PAYDAY_ENABLED:
+                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
+            elif message.guild.id == 587508374820618240:
+                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will output a message reminding people that the payday command was a really stupid idea.\n"
+            output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
+            if isManagePerms:
+                output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
+                output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
+                output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
+            output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
+            if isManagePerms:
+                output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
 
         await message.channel.send(output)
 
