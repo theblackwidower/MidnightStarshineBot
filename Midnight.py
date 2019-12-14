@@ -421,22 +421,6 @@ async def payday(message):
         await master.dm_channel.send(str(message.author) + " attempted to run the payday command.")
         await message.channel.send("The payday command has been disabled, because it was a terrible idea in the first place. Have a nice day.")
 
-async def setRule(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = sqlite3.connect(DATABASE_LOCATION)
-
-        server_id = message.guild.id
-        c = conn.cursor()
-        c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?);', (server_id, parsing[2]))
-        c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = ?', (server_id,))
-        data = c.fetchone()
-        await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
-
-        conn.commit()
-        conn.close()
-        await updateRuleChannel(message)
-
 async def clearDms(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_DMS_COMMAND:
@@ -457,6 +441,22 @@ async def clearDms(message):
                 await message.channel.send("Message " + parsing[2] + " not found.")
         else:
             await message.channel.send("Not a valid message number.")
+
+async def setRule(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        conn = sqlite3.connect(DATABASE_LOCATION)
+
+        server_id = message.guild.id
+        c = conn.cursor()
+        c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?);', (server_id, parsing[2]))
+        c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = ?', (server_id,))
+        data = c.fetchone()
+        await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
+
+        conn.commit()
+        conn.close()
+        await updateRuleChannel(message)
 
 async def getRule(message):
     parsing = message.content.partition(" ")
