@@ -57,6 +57,8 @@ RULE_GET_BACKUP_COMMAND = "getrulebackup"
 RULE_CHANNEL_SET_COMMAND = "setrulechannel"
 RULE_CHANNEL_CLEAR_COMMAND = "clearrulechannel"
 
+MAX_CHARS = 2000
+
 PAYDAY_AMOUNT = 250
 PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
 
@@ -264,7 +266,31 @@ async def rolecall(message):
         output = "**RoleCall**\n"
         for i in range(len(index) - 1, -1, -1):
             if len(index[i]) > 0:
-                output += "*" + discord.utils.escape_mentions(roles[i].name) + "*:\n" + index[i] + "\n"
+                currentAddition = "*" + discord.utils.escape_mentions(roles[i].name) + "*:\n" + index[i] + "\n"
+                if len(output) + len(currentAddition) <= MAX_CHARS:
+                    output += currentAddition
+                elif len(output) <= MAX_CHARS:
+                    await message.channel.send(output)
+                    output = currentAddition
+                elif len(output) + len(currentAddition) <= (MAX_CHARS * 2):
+                    await message.channel.send(output[:MAX_CHARS])
+                    output = output[MAX_CHARS:] + currentAddition
+                elif len(output) <= (MAX_CHARS * 2):
+                    await message.channel.send(output[:MAX_CHARS])
+                    await message.channel.send(output[MAX_CHARS:])
+                    output = currentAddition
+                elif len(output) + len(currentAddition) <= (MAX_CHARS * 3):
+                    await message.channel.send(output[:MAX_CHARS])
+                    await message.channel.send(output[MAX_CHARS:MAX_CHARS * 2])
+                    output = output[MAX_CHARS * 2:] + currentAddition
+                elif len(output) <= (MAX_CHARS * 3):
+                    await message.channel.send(output[:MAX_CHARS])
+                    await message.channel.send(output[MAX_CHARS:MAX_CHARS * 2])
+                    await message.channel.send(output[MAX_CHARS * 2:])
+                    output = currentAddition
+                else:
+                    await message.channel.send("Encountered an error outputting the rolecall. Just too many people in one role, comprising " + str(len(output)) + " characters. Sorry, not much I can do about that.")
+                    output = currentAddition
 
         await message.channel.send(output)
 
@@ -540,6 +566,7 @@ async def getAllRules(message):
         count = len(data)
         output = "**SERVER RULES** for " + message.guild.name + ":"
         for i in range(count):
+            # TODO: add some kind of length control
             output += "\nRule #" + str(i + 1) + ": " + data[i][0]
         await message.author.create_dm()
         await message.author.dm_channel.send(output)
@@ -558,6 +585,7 @@ async def getRuleBackup(message):
         count = len(data)
         output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
         for i in range(count):
+            # TODO: add some kind of length control
             output += "\n" + COMMAND_PREFIX + RULE_SET_COMMAND + " " + data[i][0]
         output += "```"
         await message.author.create_dm()
@@ -589,6 +617,7 @@ async def setRuleChannel(message):
                 count = len(rulesData)
                 ruleOutput = "**RULES:**"
                 for i in range(count):
+                    # TODO: add some kind of length control
                     ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
                 ruleMessage = await ruleChannel.send(ruleOutput)
                 if oldData is None:
@@ -635,6 +664,7 @@ async def updateRuleChannel(message):
             count = len(rulesData)
             ruleOutput = "**RULES:**"
             for i in range(count):
+                # TODO: add some kind of length control
                 ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
             await ruleMessage.edit(content=ruleOutput)
         except discord.errors.NotFound:
