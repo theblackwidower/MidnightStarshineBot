@@ -99,19 +99,25 @@ async def on_ready():
 
 @client.event
 async def on_error(self, event_method, *args, **kwargs):
-    log = open(ERROR_LOG,"a+")
-    log.write("\n\nException occurred at " + datetime.datetime.now().isoformat() + ":\n")
-    log.write('Ignoring exception in {}'.format(event_method) + "\n")
-    log.write(traceback.format_exc())
-    log.close()
+    try:
+        log = open(ERROR_LOG,"a+")
+        log.write("\n\nException occurred at " + datetime.datetime.now().isoformat() + ":\n")
+        log.write('Ignoring exception in {}'.format(event_method) + "\n")
+        log.write(traceback.format_exc())
+        log.close()
 
-    master = client.get_user(ECHO_USER)
-    await master.create_dm()
-    await master.dm_channel.send("Encountered an exception. Check logs at: " + datetime.datetime.now().isoformat())
+        master = client.get_user(ECHO_USER)
+        await master.create_dm()
+        await master.dm_channel.send("Encountered an exception. Check logs at: " + datetime.datetime.now().isoformat())
+    except:
+        master = client.get_user(ECHO_USER)
+        await master.create_dm()
+        await master.dm_channel.send("Encountered an exception. Also encounted a problem logging the exception. Sorry.")
 
-    # Copy of parent code from client.py
-    print('Ignoring exception in {}'.format(event_method), file=sys.stderr)
-    traceback.print_exc()
+    finally:
+        # Copy of parent code from client.py
+        print('Ignoring exception in {}'.format(event_method), file=sys.stderr)
+        traceback.print_exc()
 
 @client.event
 async def on_member_join(member):
