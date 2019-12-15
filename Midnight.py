@@ -100,7 +100,7 @@ async def on_ready():
 @client.event
 async def on_error(self, event_method, *args, **kwargs):
     try:
-        log = open(ERROR_LOG,"a+")
+        log = open(ERROR_LOG, "a+", encoding='utf-8')
         log.write("\n\nException occurred at " + datetime.datetime.now().isoformat() + ":\n")
         log.write('Ignoring exception in {}'.format(event_method) + "\n")
         log.write(traceback.format_exc())
