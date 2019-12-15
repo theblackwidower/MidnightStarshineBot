@@ -413,29 +413,8 @@ async def payday(message):
                 await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
             else:
                 timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime
-                totalSeconds = timeLeft.total_seconds()
-                hours = math.floor(totalSeconds // (60 * 60))
-                minutes = math.floor(totalSeconds // 60) % 60
-                seconds = math.floor(totalSeconds % 60)
 
-                totalTimeParts = []
-                if hours > 0:
-                    totalTimeParts.append(str(hours) + " hours")
-                if minutes > 0:
-                    totalTimeParts.append(str(minutes) + " minutes")
-                if seconds > 0:
-                    totalTimeParts.append(str(seconds) + " seconds")
-
-                if len(totalTimeParts) == 1:
-                    totalTimeString = totalTimeParts[0]
-                elif len(totalTimeParts) == 2:
-                    totalTimeString = totalTimeParts[0] + " and " + totalTimeParts[1]
-                elif len(totalTimeParts) == 3:
-                    totalTimeString = totalTimeParts[0] + ", " + totalTimeParts[1] + " and " + totalTimeParts[2]
-                else:
-                    raise Exception("Invalid number of totalTimeParts: " + len(totalTimeParts))
-
-                await message.channel.send(message.author.mention + "! Please wait another " + totalTimeString + " before attempting another payday.")
+                await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
 
         conn.commit()
         conn.close()
@@ -445,6 +424,31 @@ async def payday(message):
         await master.create_dm()
         await master.dm_channel.send(str(message.author) + " attempted to run the payday command.")
         await message.channel.send("The payday command has been disabled, because it was a terrible idea in the first place. Have a nice day.")
+
+def timeDeltaToString(timeDelta):
+    totalSeconds = timeDelta.total_seconds()
+    hours = math.floor(totalSeconds // (60 * 60))
+    minutes = math.floor(totalSeconds // 60) % 60
+    seconds = math.floor(totalSeconds % 60)
+
+    totalTimeParts = []
+    if hours > 0:
+        totalTimeParts.append(str(hours) + " hours")
+    if minutes > 0:
+        totalTimeParts.append(str(minutes) + " minutes")
+    if seconds > 0:
+        totalTimeParts.append(str(seconds) + " seconds")
+
+    if len(totalTimeParts) == 1:
+        totalTimeString = totalTimeParts[0]
+    elif len(totalTimeParts) == 2:
+        totalTimeString = totalTimeParts[0] + " and " + totalTimeParts[1]
+    elif len(totalTimeParts) == 3:
+        totalTimeString = totalTimeParts[0] + ", " + totalTimeParts[1] + " and " + totalTimeParts[2]
+    else:
+        raise Exception("Invalid number of totalTimeParts: " + len(totalTimeParts))
+
+    return totalTimeString
 
 async def clearDms(message):
     parsing = message.content.partition(" ")
