@@ -272,31 +272,16 @@ async def rolecall(message):
         output = "**RoleCall**\n"
         for i in range(len(index) - 1, -1, -1):
             if len(index[i]) > 0:
-                currentAddition = "*" + discord.utils.escape_mentions(roles[i].name) + "*:\n" + index[i] + "\n"
-                if len(output) + len(currentAddition) <= MAX_CHARS:
-                    output += currentAddition
-                elif len(output) <= MAX_CHARS:
-                    await message.channel.send(output)
-                    output = currentAddition
-                elif len(output) + len(currentAddition) <= (MAX_CHARS * 2):
-                    await message.channel.send(output[:MAX_CHARS])
-                    output = output[MAX_CHARS:] + currentAddition
-                elif len(output) <= (MAX_CHARS * 2):
-                    await message.channel.send(output[:MAX_CHARS])
-                    await message.channel.send(output[MAX_CHARS:])
-                    output = currentAddition
-                elif len(output) + len(currentAddition) <= (MAX_CHARS * 3):
-                    await message.channel.send(output[:MAX_CHARS])
-                    await message.channel.send(output[MAX_CHARS:MAX_CHARS * 2])
-                    output = output[MAX_CHARS * 2:] + currentAddition
-                elif len(output) <= (MAX_CHARS * 3):
-                    await message.channel.send(output[:MAX_CHARS])
-                    await message.channel.send(output[MAX_CHARS:MAX_CHARS * 2])
-                    await message.channel.send(output[MAX_CHARS * 2:])
-                    output = currentAddition
+                output += "*" + discord.utils.escape_mentions(roles[i].name) + "*:\n" + index[i] + "\n"
+        if len(output) > MAX_CHARS:
+            outputLines = output.split("\n")
+            output = ""
+            for line in outputLines:
+                if len(output) + len(line) <= MAX_CHARS - 2:
+                    output += line + "\n"
                 else:
-                    await message.channel.send("Encountered an error outputting the rolecall. Just too many people in one role, comprising " + str(len(output)) + " characters. Sorry, not much I can do about that.")
-                    output = currentAddition
+                    await message.channel.send(output)
+                    output = line + "\n"
 
         await message.channel.send(output)
 
