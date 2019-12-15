@@ -257,10 +257,12 @@ async def rolecall(message):
         else:
             users = scannedRole.members
 
-        index = [""]
+        index = []
+        count = []
         roles = message.channel.guild.roles
         for role in roles:
             index.append("")
+            count.append(0)
 
         for user in users:
             if (user.nick is None):
@@ -268,11 +270,17 @@ async def rolecall(message):
             else:
                 name = user.nick + " (" + user.name + ")"
             index[user.top_role.position] += "   " + name + "\n"
+            count[user.top_role.position] += 1
 
         output = "**RoleCall**\n"
         for i in range(len(index) - 1, -1, -1):
-            if len(index[i]) > 0:
-                output += "*" + discord.utils.escape_mentions(roles[i].name) + "*:\n" + index[i] + "\n"
+            if count[i] > 0:
+                if count[i] == 1:
+                    countString = str(count[i]) + " member"
+                else:
+                    countString = str(count[i]) + " members"
+                output += "*" + discord.utils.escape_mentions(roles[i].name) + "* - (" + countString + ")\n" + index[i] + "\n"
+        output += "\nTotal of **" + str(len(users)) + "** members listed"
         if len(output) > MAX_CHARS:
             outputLines = output.split("\n")
             output = ""
