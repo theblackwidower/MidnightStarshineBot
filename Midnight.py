@@ -71,9 +71,6 @@ activeRecordLast = dict()
 activeRecordStart = dict()
 activeCheckTime = dict()
 
-ACTIVE_GAP = datetime.timedelta(seconds=30)
-ACTIVE_DURATION = datetime.timedelta(minutes=5)
-
 ACTIVE_MAX = datetime.timedelta(days=3)
 ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 
@@ -159,8 +156,7 @@ async def on_message(message):
             await clearRuleChannel(message)
         elif isinstance(message.channel, discord.DMChannel):
             await clearDms(message)
-    if isinstance(message.author, discord.Member) and message.guild.get_role(ACTIVE_ROLE) is not None and not message.author.bot and not isActive(message.author):
-        await checkActive(message)
+    await checkActive(message)
 
 @client.event
 async def on_message_edit(old_message, message):
@@ -335,17 +331,33 @@ def isActive(member):
         return False
 
 async def checkActive(message):
-    try:
-        lastMessageTime = activeRecordLast[message.author.id]
-        if message.created_at <= lastMessageTime + ACTIVE_GAP:
-            startMessageTime = activeRecordStart[message.author.id]
-            if message.created_at >= startMessageTime + ACTIVE_DURATION:
-                await message.author.add_roles(message.guild.get_role(ACTIVE_ROLE), reason="Been sending at least one message per " + str(ACTIVE_GAP) + " for " + str(ACTIVE_DURATION) + ".")
-        else:
-            activeRecordStart[message.author.id] = message.created_at
-    except KeyError:
-        activeRecordStart[message.author.id] = message.created_at
-    activeRecordLast[message.author.id] = message.created_at
+    if isinstance(message.author, discord.Member) and not message.author.bot:
+        conn = sqlite3.connect(DATABASE_LOCATION)
+        c = conn.cursor()
+        c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+        data = c.fetchone()
+        if data is not None:
+            role = message.guild.get_role(data[0])
+            gap = datetime.timedelta(seconds=data[1])
+            duration = datetime.timedelta(seconds=data[2])
+
+            try:
+                message.author.roles.index(message.author.guild.get_role(data[0]))
+            except ValueError:
+                try:
+                    lastMessageTime = activeRecordLast[message.author.id]
+                    if message.created_at <= lastMessageTime + gap:
+                        startMessageTime = activeRecordStart[message.author.id]
+                        if message.created_at >= startMessageTime + duration:
+                            await message.author.add_roles(role, reason="Been sending at least one message per " + str(gap) + " for " + str(duration) + ".")
+                    else:
+                        activeRecordStart[message.author.id] = message.created_at
+                except KeyError:
+                    activeRecordStart[message.author.id] = message.created_at
+                activeRecordLast[message.author.id] = message.created_at
+
+        conn.commit()
+        conn.close()
 
 async def purgeActiveServer(server):
     activeRole = server.get_role(ACTIVE_ROLE)

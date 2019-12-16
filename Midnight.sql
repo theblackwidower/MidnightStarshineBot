@@ -36,3 +36,12 @@ CREATE TABLE "tbl_rule_posting" (
 	"message"	INTEGER UNIQUE,
 	PRIMARY KEY("server")
 );
+
+CREATE TABLE "tbl_active_role_settings" (
+	"server"	INTEGER,
+	"role"	INTEGER NOT NULL UNIQUE,
+	"gap"	INTEGER NOT NULL,
+	"duration"	INTEGER NOT NULL,
+	"max"	INTEGER NOT NULL,
+	PRIMARY KEY("server")
+);
