@@ -65,13 +65,10 @@ PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
 YAG_ID = 204255221017214977
 RYLAN_NAME = 'rylan'
 
-ACTIVE_ROLE = 635253363440877599
-
 activeRecordLast = dict()
 activeRecordStart = dict()
 activeCheckTime = dict()
 
-ACTIVE_MAX = datetime.timedelta(days=3)
 ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 
 load_dotenv()
@@ -134,8 +131,7 @@ async def on_guild_role_update(before, after):
 @client.event
 async def on_member_update(before, after):
     await rylanSnipe(after)
-    if after.guild.get_role(ACTIVE_ROLE) is not None and isinstance(after, discord.Member) and not after.bot and isActive(after):
-        await purgeActiveMember(after)
+    await purgeActiveMember(after)
 
 @client.event
 async def on_message(message):
@@ -323,13 +319,6 @@ async def rylanSnipe(member):
         else:
             print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
 
-def isActive(member):
-    try:
-        member.roles.index(member.guild.get_role(ACTIVE_ROLE))
-        return True
-    except ValueError:
-        return False
-
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
         conn = sqlite3.connect(DATABASE_LOCATION)
@@ -360,10 +349,16 @@ async def checkActive(message):
         conn.close()
 
 async def purgeActiveServer(server):
-    activeRole = server.get_role(ACTIVE_ROLE)
-    if activeRole is not None:
+    conn = sqlite3.connect(DATABASE_LOCATION)
+    c = conn.cursor()
+    c.execute('SELECT role FROM tbl_active_role_settings WHERE server = ?', (server.id,))
+    data = c.fetchone()
+    if data is not None:
+        activeRole = server.get_role(data[0])
         for member in activeRole.members:
             await purgeActiveMember(member)
+    conn.commit()
+    conn.close()
 
 async def purgeActiveMember(member):
     try:
@@ -371,36 +366,51 @@ async def purgeActiveMember(member):
     except KeyError:
         lastCheck = None
 
-    if lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now():
-        threshold = datetime.datetime.now() - ACTIVE_MAX
+    if isinstance(member, discord.Member) and not member.bot and (lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now()):
+        conn = sqlite3.connect(DATABASE_LOCATION)
+        c = conn.cursor()
+        c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = ?', (member.guild.id,))
+        data = c.fetchone()
+        if data is not None:
+            role = member.guild.get_role(data[0])
+            max = datetime.timedelta(seconds=data[1])
+            conn.commit()
+            conn.close()
 
-        history = await member.history(limit=1, oldest_first=False).flatten()
-        try:
-            lastMessageTime = history[0].created_at
-        except IndexError:
-            lastMessageTime = None
+            try:
+                member.roles.index(role)
+                threshold = datetime.datetime.now() - max
 
-        # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
-        if lastMessageTime is None:
-            print("Running purgeActive backup code in " + member.guild.name + " on " + str(member) + " at " + datetime.datetime.now().isoformat())
-            for channel in member.guild.channels:
-                if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
-                    memberMessages = []
-                    async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
-                        if message.author == member:
-                            memberMessages.append(message)
-                    for message in memberMessages:
-                        if lastMessageTime is None:
-                            lastMessageTime = message.created_at
-                        elif lastMessageTime < message.created_at:
-                            lastMessageTime = message.created_at
-            if lastMessageTime is None:
-                lastMessageTime = threshold
+                history = await member.history(limit=1, oldest_first=False).flatten()
+                try:
+                    lastMessageTime = history[0].created_at
+                except IndexError:
+                    lastMessageTime = None
 
-        if lastMessageTime <= threshold:
-            await member.remove_roles(member.guild.get_role(ACTIVE_ROLE), reason="Can't find any messages from this user in the past " + str(ACTIVE_MAX) + ".")
-        else:
-            activeCheckTime[member.id] = datetime.datetime.now()
+                # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
+                if lastMessageTime is None:
+                    print("Running purgeActive backup code in " + member.guild.name + " on " + str(member) + " at " + datetime.datetime.now().isoformat())
+                    for channel in member.guild.channels:
+                        if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
+                            memberMessages = []
+                            async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
+                                if message.author == member:
+                                    memberMessages.append(message)
+                            for message in memberMessages:
+                                if lastMessageTime is None:
+                                    lastMessageTime = message.created_at
+                                elif lastMessageTime < message.created_at:
+                                    lastMessageTime = message.created_at
+                    if lastMessageTime is None:
+                        lastMessageTime = threshold
+
+                if lastMessageTime <= threshold:
+                    await member.remove_roles(role, reason="Can't find any messages from this user in the past " + str(max) + ".")
+                else:
+                    activeCheckTime[member.id] = datetime.datetime.now()
+
+            except ValueError:
+                pass
 
 async def payday(message):
     parsing = message.content.partition(" ")
