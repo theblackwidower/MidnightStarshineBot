@@ -46,3 +46,5 @@ $ python Midnight.py
 
   * Currency system ('payday' command)
   * Time-delayed echo
+  * Moderation features (mute, warn, kick, and ban commands)
+  * Automated welcome
