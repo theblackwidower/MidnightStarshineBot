@@ -47,6 +47,8 @@ ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 PAYDAY_COMMAND = "payday"
 CLEAR_DMS_COMMAND = "cleardms"
+SETUP_ACTIVE_ROLE_COMMAND = "setupactiverole"
+CLEAR_ACTIVE_ROLE_COMMAND = "clearactiverole"
 
 RULE_GET_COMMAND = "getrule"
 RULE_SET_COMMAND = "setrule"
@@ -144,6 +146,9 @@ async def on_message(message):
             await echo(message)
             await rolecall(message)
             await payday(message)
+            await setupActive(message)
+            await clearActive(message)
+
             await setRule(message)
             await getRule(message)
             await editRule(message)
@@ -177,6 +182,8 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+                output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
+                output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again."
             if IS_PAYDAY_ENABLED:
                 output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
             elif message.guild.id == 587508374820618240:
@@ -334,6 +341,84 @@ async def rylanSnipe(member):
             await member.kick(reason="Too many rylans.")
         else:
             print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
+
+def parseTimeDelta(string):
+    num = string[:len(string) - 1]
+    if num.isdigit():
+        num = int(num)
+        if string.endswith('d'):
+            return datetime.timedelta(days=num)
+        elif string.endswith('h'):
+            return datetime.timedelta(hours=num)
+        elif string.endswith('m'):
+            return datetime.timedelta(minutes=num)
+        elif string.endswith('s'):
+            return datetime.timedelta(seconds=num)
+    return None
+
+async def setupActive(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        parsing = parsing[2].rpartition(" ")
+        maxString = parsing[2]
+        parsing = parsing[0].rpartition(" ")
+        durationString = parsing[2]
+        parsing = parsing[0].rpartition(" ")
+        gapString = parsing[2]
+        roleString = parsing[0]
+
+        if roleString == "" or gapString == "" or durationString == "" or maxString == "":
+            await message.channel.send("I'm missing some information, I'm sure of it. You need to provide me with a role, a maximum gap between messages to be considered 'active,' a minimum duration of activity, and a maximum duration of inactivity.")
+        else:
+            role = parseRole(message.guild, roleString)
+            gap = parseTimeDelta(gapString)
+            duration = parseTimeDelta(durationString)
+            max = parseTimeDelta(maxString)
+            if role is None:
+                await message.channel.send("Cannot find the role entered.")
+            elif gap is None:
+                await message.channel.send("Cannot interpret what you entered for activity gap. Please enter a number, followed by 'd', 'h', 'm', or 's', for day, hour, minute, or second.")
+            elif duration is None:
+                await message.channel.send("Cannot interpret what you entered for minimum activity duration. Please enter a number, followed by 'd', 'h', 'm', or 's', for day, hour, minute, or second.")
+            elif max is None:
+                await message.channel.send("Cannot interpret what you entered for maximum period of inactivity. Please enter a number, followed by 'd', 'h', 'm', or 's', for day, hour, minute, or second.")
+            elif gap >= duration or duration >= max:
+                await message.channel.send("The *activity gap* has to be less than the *minimum activity duration*, which has to be less than the *maximum period of inactivity*.")
+            else:
+                conn = sqlite3.connect(DATABASE_LOCATION)
+                c = conn.cursor()
+                c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+                data = c.fetchone()
+                if data[0] > 0:
+                    c.execute('UPDATE tbl_active_role_settings SET role = ?, gap = ?, duration = ?, max = ? WHERE server = ?', (role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id))
+                    output = "Active user role successfully updated with the following parameters:\n"
+                else:
+                    c.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES (?, ?, ?, ?, ?);', (message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds()))
+                    output = "Active user role successfully set up with the following parameters:\n"
+                output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
+                output += "... to any user who sends at least one message every __" + timeDeltaToString(gap) + "__...\n"
+                output += "... for at least __" + timeDeltaToString(duration) + "__.\n"
+                output += "And we'll take the role away if they stop posting for __" + timeDeltaToString(max) + "__.\n"
+                await message.channel.send(output)
+                conn.commit()
+                conn.close()
+
+async def clearActive(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        conn = sqlite3.connect(DATABASE_LOCATION)
+        c = conn.cursor()
+        c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+        data = c.fetchone()
+        if data[0] > 0:
+            c.execute('DELETE FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+            await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
+        else:
+            await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
+        conn.commit()
+        conn.close()
+
+
 
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
