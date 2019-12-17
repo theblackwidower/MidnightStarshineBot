@@ -87,6 +87,7 @@ async def on_ready():
 
     for guild in client.guilds:
         print(f'{guild.name}(id: {guild.id})')
+        setupDataCache(guild.id)
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
         await purgeActiveServer(guild)
@@ -120,6 +121,7 @@ async def on_member_join(member):
 
 @client.event
 async def on_guild_join(server):
+    setupDataCache(server.id)
     await yagSnipe(server.get_member(YAG_ID))
     await rylanSnipeServer(server)
 
@@ -193,6 +195,11 @@ async def help(message):
             output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
 
         await message.channel.send(output)
+
+def setupDataCache(server_id):
+    activeRecordLast[server_id] = dict()
+    activeRecordStart[server_id] = dict()
+    activeCheckTime[server_id] = dict()
 
 async def emoji_censor(message):
     if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
@@ -334,16 +341,16 @@ async def checkActive(message):
                 message.author.roles.index(message.author.guild.get_role(data[0]))
             except ValueError:
                 try:
-                    lastMessageTime = activeRecordLast[message.author.id]
+                    lastMessageTime = activeRecordLast[message.guild.id][message.author.id]
                     if message.created_at <= lastMessageTime + gap:
-                        startMessageTime = activeRecordStart[message.author.id]
+                        startMessageTime = activeRecordStart[message.guild.id][message.author.id]
                         if message.created_at >= startMessageTime + duration:
                             await message.author.add_roles(role, reason="Been sending at least one message per " + str(gap) + " for " + str(duration) + ".")
                     else:
-                        activeRecordStart[message.author.id] = message.created_at
+                        activeRecordStart[message.guild.id][message.author.id] = message.created_at
                 except KeyError:
-                    activeRecordStart[message.author.id] = message.created_at
-                activeRecordLast[message.author.id] = message.created_at
+                    activeRecordStart[message.guild.id][message.author.id] = message.created_at
+                activeRecordLast[message.guild.id][message.author.id] = message.created_at
 
         conn.commit()
         conn.close()
@@ -362,7 +369,7 @@ async def purgeActiveServer(server):
 
 async def purgeActiveMember(member):
     try:
-        lastCheck = activeCheckTime[member.id]
+        lastCheck = activeCheckTime[member.guild.id][member.id]
     except KeyError:
         lastCheck = None
 
@@ -407,7 +414,7 @@ async def purgeActiveMember(member):
                 if lastMessageTime <= threshold:
                     await member.remove_roles(role, reason="Can't find any messages from this user in the past " + str(max) + ".")
                 else:
-                    activeCheckTime[member.id] = datetime.datetime.now()
+                    activeCheckTime[member.guild.id][member.id] = datetime.datetime.now()
 
             except ValueError:
                 pass
