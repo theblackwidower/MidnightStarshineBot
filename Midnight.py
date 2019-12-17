@@ -237,21 +237,30 @@ async def echo(message):
             await message.channel.send(parsing[2])
             await message.delete()
 
+def parseRole(server, string):
+    role = None
+    if string.startswith("<@&") and string.endswith(">"):
+        roleId = string[3:len(string) - 1]
+        if roleId.isdigit():
+            role = server.get_role(int(roleId))
+    elif string.isdigit():
+        role = server.get_role(int(string))
+    if role is None:
+        role = discord.utils.get(server.roles, name=string)
+    return role
+
 async def rolecall(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + ROLECALL_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         content = parsing[2].strip()
-        scannedRole = 0
+        scannedRole = None
         if len(content) > 0:
-            for role in message.channel.guild.roles:
-                if role.name == content:
-                    scannedRole = role
-                    break
-            if scannedRole == 0:
+            scannedRole = parseRole(message.guild, content)
+            if scannedRole is None:
                 await message.channel.send("Invalid role name.")
                 return
         users = 0
-        if scannedRole == 0:
+        if scannedRole is None:
             users = message.channel.guild.members
         else:
             users = scannedRole.members
