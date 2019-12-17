@@ -30,7 +30,7 @@ import traceback
 
 ERROR_LOG = "MidnightError.log"
 
-COMMAND_PREFIX = "ms!"
+COMMAND_PREFIX = "msd!"
 
 DATABASE_LOCATION='Midnight.db'
 
