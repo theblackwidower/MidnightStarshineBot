@@ -550,11 +550,14 @@ async def payday(message):
 
 def timeDeltaToString(timeDelta):
     totalSeconds = timeDelta.total_seconds()
-    hours = math.floor(totalSeconds // (60 * 60))
+    days = math.floor(totalSeconds // (60 * 60 * 24))
+    hours = math.floor(totalSeconds // (60 * 60)) % 24
     minutes = math.floor(totalSeconds // 60) % 60
     seconds = math.floor(totalSeconds % 60)
 
     totalTimeParts = []
+    if days > 0:
+        totalTimeParts.append(str(days) + " days")
     if hours > 0:
         totalTimeParts.append(str(hours) + " hours")
     if minutes > 0:
@@ -568,6 +571,8 @@ def timeDeltaToString(timeDelta):
         totalTimeString = totalTimeParts[0] + " and " + totalTimeParts[1]
     elif len(totalTimeParts) == 3:
         totalTimeString = totalTimeParts[0] + ", " + totalTimeParts[1] + " and " + totalTimeParts[2]
+    elif len(totalTimeParts) == 4:
+        totalTimeString = totalTimeParts[0] + ", " + totalTimeParts[1] + ", " + totalTimeParts[2] + " and " + totalTimeParts[3]
     else:
         raise Exception("Invalid number of totalTimeParts: " + len(totalTimeParts))
 
