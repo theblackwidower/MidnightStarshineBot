@@ -40,7 +40,7 @@ IS_YAG_SNIPE_ENABLED = True
 IS_RYLAN_SNIPE_ENABLED = True
 IS_PAYDAY_ENABLED = False
 
-ECHO_USER = 204818040628576256
+MIDNIGHTS_TRUE_MASTER = 204818040628576256
 
 HELP_COMMAND = "help"
 ECHO_COMMAND = "say"
@@ -103,11 +103,11 @@ async def on_error(self, event_method, *args, **kwargs):
         log.write(traceback.format_exc())
         log.close()
 
-        master = client.get_user(ECHO_USER)
+        master = client.get_user(MIDNIGHTS_TRUE_MASTER)
         await master.create_dm()
         await master.dm_channel.send("Encountered an exception. Check logs at: " + datetime.datetime.now().isoformat())
     except:
-        master = client.get_user(ECHO_USER)
+        master = client.get_user(MIDNIGHTS_TRUE_MASTER)
         await master.create_dm()
         await master.dm_channel.send("Encountered an exception. Also encounted a problem logging the exception. Sorry.")
 
@@ -178,7 +178,7 @@ async def help(message):
         output += "\n**COMMANDS:**\n"
         output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
         if isinstance(message.channel, discord.TextChannel):
-            if message.author.id == ECHO_USER and IS_ECHO_ENABLED:
+            if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
@@ -240,7 +240,7 @@ async def emoji_censor(message):
 async def echo(message):
     if IS_ECHO_ENABLED:
         parsing = message.content.partition(" ")
-        if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id == ECHO_USER:
+        if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
             await message.channel.send(parsing[2])
             await message.delete()
 
@@ -543,7 +543,7 @@ async def payday(message):
         conn.close()
 
     elif message.guild.id == 587508374820618240 and parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and not IS_PAYDAY_ENABLED:
-        master = client.get_user(ECHO_USER)
+        master = client.get_user(MIDNIGHTS_TRUE_MASTER)
         await master.create_dm()
         await master.dm_channel.send(str(message.author) + " attempted to run the payday command.")
         await message.channel.send("The payday command has been disabled, because it was a terrible idea in the first place. Have a nice day.")
