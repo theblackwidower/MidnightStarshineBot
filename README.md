@@ -15,6 +15,7 @@ With that, add a new file in the bot's root folder named `.env`. (The dot at the
 This file should contain the following code:
 ```
 DISCORD_TOKEN=[Insert Bot Token here]
+DATABASE_URL=postgres://localhost
 ```
 Insert the token in the appropriate location. (Don't include the brackets.)
 
@@ -24,6 +25,7 @@ You'll also need to install a few Python modules.
 ```
 $ pip install -U discord.py
 $ pip install -U python-dotenv
+$ pip install -U psycopg2-binary
 ```
 
 Finally, you'll need to set up an SQLite database. Place the database file in the same folder as Midnight.py, and name it `Midnight.db`. Then initialize it with the contents of `Midnight.sql`.
