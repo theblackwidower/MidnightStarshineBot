@@ -556,13 +556,21 @@ def timeDeltaToString(timeDelta):
     seconds = math.floor(totalSeconds % 60)
 
     totalTimeParts = []
-    if days > 0:
+    if days == 1:
+        totalTimeParts.append("1 day")
+    elif days > 1:
         totalTimeParts.append(str(days) + " days")
-    if hours > 0:
+    if hours == 1:
+        totalTimeParts.append("1 hour")
+    elif hours > 1:
         totalTimeParts.append(str(hours) + " hours")
-    if minutes > 0:
+    if minutes == 1:
+        totalTimeParts.append("1 minute")
+    elif minutes > 1:
         totalTimeParts.append(str(minutes) + " minutes")
-    if seconds > 0:
+    if seconds == 1:
+        totalTimeParts.append("1 second")
+    elif seconds > 1:
         totalTimeParts.append(str(seconds) + " seconds")
 
     if len(totalTimeParts) == 1:
