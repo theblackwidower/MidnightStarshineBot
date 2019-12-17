@@ -642,7 +642,7 @@ async def getRule(message):
             await message.channel.send("Please provide a valid number.")
 
 
-async def getRuleId(server_id, rule_num):
+def getRuleId(server_id, rule_num):
     conn = sqlite3.connect(DATABASE_LOCATION)
 
     c = conn.cursor()
@@ -663,7 +663,7 @@ async def editRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_EDIT_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         parsing = parsing[2].partition(" ")
         if parsing[0].isdigit():
-            rule_id = await getRuleId(message.guild.id, int(parsing[0]))
+            rule_id = getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
                 conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
@@ -681,7 +681,7 @@ async def deleteRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_DELETE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         if parsing[2].isdigit():
-            rule_id = await getRuleId(message.guild.id, int(parsing[2]))
+            rule_id = getRuleId(message.guild.id, int(parsing[2]))
             if rule_id is not None:
                 conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
