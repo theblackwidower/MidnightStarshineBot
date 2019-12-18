@@ -76,6 +76,8 @@ ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 
+conn = sqlite3.connect(DATABASE_LOCATION)
+
 client = discord.Client()
 
 @client.event
@@ -164,6 +166,10 @@ async def on_message(message):
 @client.event
 async def on_message_edit(old_message, message):
     await emoji_censor(message)
+
+@client.event
+async def close():
+    conn.close()
 
 async def help(message):
     parsing = message.content.partition(" ")
@@ -385,7 +391,6 @@ async def setupActive(message):
             elif gap >= duration or duration >= max:
                 await message.channel.send("The *activity gap* has to be less than the *minimum activity duration*, which has to be less than the *maximum period of inactivity*.")
             else:
-                conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
                 c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
                 data = c.fetchone()
@@ -401,12 +406,10 @@ async def setupActive(message):
                 output += "And we'll take the role away if they stop posting for __" + timeDeltaToString(max) + "__.\n"
                 await message.channel.send(output)
                 conn.commit()
-                conn.close()
 
 async def clearActive(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
         c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
         data = c.fetchone()
@@ -416,13 +419,9 @@ async def clearActive(message):
         else:
             await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
         conn.commit()
-        conn.close()
-
-
 
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
-        conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
         c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
         data = c.fetchone()
@@ -446,11 +445,7 @@ async def checkActive(message):
                     activeRecordStart[message.guild.id][message.author.id] = message.created_at
                 activeRecordLast[message.guild.id][message.author.id] = message.created_at
 
-        conn.commit()
-        conn.close()
-
 async def purgeActiveServer(server):
-    conn = sqlite3.connect(DATABASE_LOCATION)
     c = conn.cursor()
     c.execute('SELECT role FROM tbl_active_role_settings WHERE server = ?', (server.id,))
     data = c.fetchone()
@@ -458,8 +453,6 @@ async def purgeActiveServer(server):
         activeRole = server.get_role(data[0])
         for member in activeRole.members:
             await purgeActiveMember(member)
-    conn.commit()
-    conn.close()
 
 async def purgeActiveMember(member):
     try:
@@ -468,16 +461,12 @@ async def purgeActiveMember(member):
         lastCheck = None
 
     if isinstance(member, discord.Member) and not member.bot and (lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now()):
-        conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
         c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = ?', (member.guild.id,))
         data = c.fetchone()
         if data is not None:
             role = member.guild.get_role(data[0])
             max = datetime.timedelta(seconds=data[1])
-            conn.commit()
-            conn.close()
-
             try:
                 member.roles.index(role)
                 threshold = datetime.datetime.now() - max
@@ -516,8 +505,6 @@ async def purgeActiveMember(member):
 async def payday(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and IS_PAYDAY_ENABLED:
-        conn = sqlite3.connect(DATABASE_LOCATION)
-
         c = conn.cursor()
         c.execute('SELECT funds, last_payday FROM tbl_currency WHERE server_id = ? AND member_id = ?', (message.guild.id, message.author.id))
         data = c.fetchone()
@@ -540,7 +527,6 @@ async def payday(message):
                 await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
 
         conn.commit()
-        conn.close()
 
     elif message.guild.id == 587508374820618240 and parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and not IS_PAYDAY_ENABLED:
         master = client.get_user(MIDNIGHTS_TRUE_MASTER)
@@ -610,8 +596,6 @@ async def clearDms(message):
 async def setRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = sqlite3.connect(DATABASE_LOCATION)
-
         server_id = message.guild.id
         c = conn.cursor()
         c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?)', (server_id, parsing[2]))
@@ -620,14 +604,12 @@ async def setRule(message):
         await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
 
         conn.commit()
-        conn.close()
         await updateRuleChannel(message)
 
 async def getRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
         if parsing[2].isdigit():
-            conn = sqlite3.connect(DATABASE_LOCATION)
             c = conn.cursor()
             c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
             data = c.fetchall()
@@ -636,15 +618,11 @@ async def getRule(message):
                 await message.channel.send("Rule #" + parsing[2] + ": " + data[rule_num - 1][0])
             else:
                 await message.channel.send("There is no rule #" + parsing[2])
-            conn.commit()
-            conn.close()
         else:
             await message.channel.send("Please provide a valid number.")
 
 
 def getRuleId(server_id, rule_num):
-    conn = sqlite3.connect(DATABASE_LOCATION)
-
     c = conn.cursor()
     c.execute('SELECT id FROM tbl_rules WHERE server = ?', (server_id,))
     data = c.fetchall()
@@ -652,10 +630,6 @@ def getRuleId(server_id, rule_num):
         returnValue = data[rule_num - 1][0]
     else:
         returnValue = None
-
-    conn.commit()
-    conn.close()
-
     return returnValue
 
 async def editRule(message):
@@ -665,11 +639,9 @@ async def editRule(message):
         if parsing[0].isdigit():
             rule_id = getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
-                conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
                 c.execute('UPDATE tbl_rules SET content = ? WHERE id = ?', (parsing[2], rule_id))
                 conn.commit()
-                conn.close()
                 await updateRuleChannel(message)
                 await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
             else:
@@ -683,11 +655,9 @@ async def deleteRule(message):
         if parsing[2].isdigit():
             rule_id = getRuleId(message.guild.id, int(parsing[2]))
             if rule_id is not None:
-                conn = sqlite3.connect(DATABASE_LOCATION)
                 c = conn.cursor()
                 c.execute('DELETE FROM tbl_rules WHERE id = ?', (rule_id,))
                 conn.commit()
-                conn.close()
                 await updateRuleChannel(message)
                 await message.channel.send("Rule #" + parsing[2] + " has been deleted")
             else:
@@ -698,7 +668,6 @@ async def deleteRule(message):
 async def getAllRules(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
-        conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
         c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
         data = c.fetchall()
@@ -711,13 +680,10 @@ async def getAllRules(message):
         await message.author.dm_channel.send(output)
 
         await message.channel.send(message.author.mention + "! A copy of the complete server rules have been sent to your DMs.")
-        conn.commit()
-        conn.close()
 
 async def getRuleBackup(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
         c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
         data = c.fetchall()
@@ -731,8 +697,6 @@ async def getRuleBackup(message):
         await message.author.dm_channel.send(output)
 
         await message.channel.send(message.author.mention + "! A backup of the complete server rules has been sent to your DMs.")
-        conn.commit()
-        conn.close()
 
 async def setRuleChannel(message):
     parsing = message.content.partition(" ")
@@ -744,7 +708,6 @@ async def setRuleChannel(message):
         else:
             ruleChannel = message.channel_mentions[0]
             server_id = message.guild.id
-            conn = sqlite3.connect(DATABASE_LOCATION)
             c = conn.cursor()
             c.execute('SELECT channel FROM tbl_rule_posting WHERE server = ?', (server_id,))
             oldData = c.fetchone()
@@ -765,13 +728,11 @@ async def setRuleChannel(message):
                     c.execute('UPDATE tbl_rule_posting SET channel = ?, message = ? WHERE server = ?', (ruleChannel.id, ruleMessage.id, server_id))
                 await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
             conn.commit()
-            conn.close()
 
 async def clearRuleChannel(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
-        conn = sqlite3.connect(DATABASE_LOCATION)
         c = conn.cursor()
         c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = ?', (server_id,))
         data = c.fetchone()
@@ -787,11 +748,9 @@ async def clearRuleChannel(message):
             c.execute('DELETE FROM tbl_rule_posting WHERE server = ?', (server_id,))
             await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
         conn.commit()
-        conn.close()
 
 async def updateRuleChannel(message):
     server_id = message.guild.id
-    conn = sqlite3.connect(DATABASE_LOCATION)
     c = conn.cursor()
     c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = ?', (server_id,))
     messageData = c.fetchone()
@@ -808,7 +767,5 @@ async def updateRuleChannel(message):
             await ruleMessage.edit(content=ruleOutput)
         except discord.errors.NotFound:
             await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
-    conn.commit()
-    conn.close()
 
 client.run(token)
