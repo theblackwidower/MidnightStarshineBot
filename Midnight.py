@@ -28,11 +28,7 @@ import math
 import sys
 import traceback
 
-ERROR_LOG = "MidnightError.log"
-
 COMMAND_PREFIX = "ms!"
-
-DATABASE_LOCATION='Midnight.db'
 
 IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
@@ -74,7 +70,9 @@ activeCheckTime = dict()
 ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 
 load_dotenv()
-token = os.getenv('DISCORD_TOKEN')
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+ERROR_LOG = os.getenv('ERROR_LOG')
+DATABASE_LOCATION = os.getenv('DATABASE_LOCATION')
 
 conn = sqlite3.connect(DATABASE_LOCATION)
 
@@ -767,4 +765,4 @@ async def updateRuleChannel(message):
         except discord.errors.NotFound:
             await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
 
-client.run(token)
+client.run(DISCORD_TOKEN)

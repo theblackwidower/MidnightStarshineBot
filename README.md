@@ -15,8 +15,12 @@ With that, add a new file in the bot's root folder named `.env`. (The dot at the
 This file should contain the following code:
 ```
 DISCORD_TOKEN=[Insert Bot Token here]
+ERROR_LOG=[Full path to where you want the error log to be]
+DATABASE_LOCATION=[Full path to SQLite Database]
 ```
 Insert the token in the appropriate location. (Don't include the brackets.)
+
+Also, select a location for the error log to be written to, and enter the full path in the file as well.
 
 You'll need to install Python 3.7+.
 
@@ -26,6 +30,8 @@ $ pip install -r requirements.txt
 ```
 
 Finally, you'll need to set up an SQLite database. Place the database file in the same folder as Midnight.py, and name it `Midnight.db`. Then initialize it with the contents of `Midnight.sql`.
+
+Enter the full path to `Midnight.db` in the `.env` file.
 
 From here, running the bot is simple:
 ```
