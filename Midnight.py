@@ -473,7 +473,10 @@ async def purgeActiveMember(member):
 
                 history = await member.history(limit=1, oldest_first=False).flatten()
                 try:
-                    lastMessageTime = history[0].created_at
+                    if isinstance(history[0].channel, discord.TextChannel):
+                        lastMessageTime = history[0].created_at
+                    else:
+                        lastMessageTime = None
                 except IndexError:
                     lastMessageTime = None
 
