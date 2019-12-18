@@ -20,10 +20,9 @@ Insert the token in the appropriate location. (Don't include the brackets.)
 
 You'll need to install Python 3.7+.
 
-You'll also need to install a few Python modules.
+You'll also need to install a few Python modules. They're defined in the requirements file, so it's all done with a single command.
 ```
-$ pip install -U discord.py
-$ pip install -U python-dotenv
+$ pip install -r requirements.txt
 ```
 
 Finally, you'll need to set up an SQLite database. Place the database file in the same folder as Midnight.py, and name it `Midnight.db`. Then initialize it with the contents of `Midnight.sql`.
