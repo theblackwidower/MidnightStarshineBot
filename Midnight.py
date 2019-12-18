@@ -416,9 +416,9 @@ async def clearActive(message):
         if data[0] > 0:
             c.execute('DELETE FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
             await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
+            conn.commit()
         else:
             await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
-        conn.commit()
 
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
@@ -512,7 +512,6 @@ async def payday(message):
             currentFunds = PAYDAY_AMOUNT
             c.execute('INSERT INTO tbl_currency (server_id, member_id, funds, last_payday) VALUES (?, ?, ?, ?)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
             await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
-
         else:
             currentFunds = data[0]
             lastPayday = datetime.datetime.fromtimestamp(data[1])
@@ -523,9 +522,7 @@ async def payday(message):
                 await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
             else:
                 timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime
-
                 await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
-
         conn.commit()
 
     elif message.guild.id == 587508374820618240 and parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and not IS_PAYDAY_ENABLED:
@@ -602,7 +599,6 @@ async def setRule(message):
         c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = ?', (server_id,))
         data = c.fetchone()
         await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
-
         conn.commit()
         await updateRuleChannel(message)
 
@@ -641,9 +637,9 @@ async def editRule(message):
             if rule_id is not None:
                 c = conn.cursor()
                 c.execute('UPDATE tbl_rules SET content = ? WHERE id = ?', (parsing[2], rule_id))
+                await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
                 conn.commit()
                 await updateRuleChannel(message)
-                await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
             else:
                 await message.channel.send("There is no rule #" + parsing[0])
         else:
@@ -657,9 +653,9 @@ async def deleteRule(message):
             if rule_id is not None:
                 c = conn.cursor()
                 c.execute('DELETE FROM tbl_rules WHERE id = ?', (rule_id,))
+                await message.channel.send("Rule #" + parsing[2] + " has been deleted")
                 conn.commit()
                 await updateRuleChannel(message)
-                await message.channel.send("Rule #" + parsing[2] + " has been deleted")
             else:
                 await message.channel.send("There is no rule #" + parsing[2])
         else:
@@ -727,7 +723,7 @@ async def setRuleChannel(message):
                 else:
                     c.execute('UPDATE tbl_rule_posting SET channel = ?, message = ? WHERE server = ?', (ruleChannel.id, ruleMessage.id, server_id))
                 await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
-            conn.commit()
+                conn.commit()
 
 async def clearRuleChannel(message):
     parsing = message.content.partition(" ")
@@ -747,7 +743,7 @@ async def clearRuleChannel(message):
                 pass
             c.execute('DELETE FROM tbl_rule_posting WHERE server = ?', (server_id,))
             await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
-        conn.commit()
+            conn.commit()
 
 async def updateRuleChannel(message):
     server_id = message.guild.id
