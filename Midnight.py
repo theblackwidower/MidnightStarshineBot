@@ -393,7 +393,7 @@ async def setupActive(message):
                     c.execute('UPDATE tbl_active_role_settings SET role = ?, gap = ?, duration = ?, max = ? WHERE server = ?', (role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id))
                     output = "Active user role successfully updated with the following parameters:\n"
                 else:
-                    c.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES (?, ?, ?, ?, ?);', (message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds()))
+                    c.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES (?, ?, ?, ?, ?)', (message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds()))
                     output = "Active user role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user who sends at least one message every __" + timeDeltaToString(gap) + "__...\n"
@@ -523,7 +523,7 @@ async def payday(message):
         data = c.fetchone()
         if data is None:
             currentFunds = PAYDAY_AMOUNT
-            c.execute('INSERT INTO tbl_currency VALUES (?, ?, ?, ?)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
+            c.execute('INSERT INTO tbl_currency (server_id, member_id, funds, last_payday) VALUES (?, ?, ?, ?)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
             await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
 
         else:
@@ -614,7 +614,7 @@ async def setRule(message):
 
         server_id = message.guild.id
         c = conn.cursor()
-        c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?);', (server_id, parsing[2]))
+        c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?)', (server_id, parsing[2]))
         c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = ?', (server_id,))
         data = c.fetchone()
         await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
@@ -760,7 +760,7 @@ async def setRuleChannel(message):
                     ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
                 ruleMessage = await ruleChannel.send(ruleOutput)
                 if oldData is None:
-                    c.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES (?, ?, ?);', (server_id, ruleChannel.id, ruleMessage.id))
+                    c.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES (?, ?, ?)', (server_id, ruleChannel.id, ruleMessage.id))
                 else:
                     c.execute('UPDATE tbl_rule_posting SET channel = ?, message = ? WHERE server = ?', (ruleChannel.id, ruleMessage.id, server_id))
                 await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
