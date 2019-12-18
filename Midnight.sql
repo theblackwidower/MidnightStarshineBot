@@ -17,29 +17,29 @@
 	-- ------------------------------------------------------------------------
 
 CREATE TABLE "tbl_currency" (
-	"server_id"	INTEGER NOT NULL,
-	"member_id"	INTEGER NOT NULL,
+	"server_id"	BIGINT NOT NULL,
+	"member_id"	BIGINT NOT NULL,
 	"funds"	INTEGER NOT NULL,
-	"last_payday"	INTEGER,
+	"last_payday"	BIGINT,
 	PRIMARY KEY("server_id","member_id")
 );
 
 CREATE TABLE "tbl_rules" (
-	"id"	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	"server"	INTEGER NOT NULL,
+	"id"	SERIAL NOT NULL PRIMARY KEY,
+	"server"	BIGINT NOT NULL,
 	"content"	TEXT NOT NULL
 );
 
 CREATE TABLE "tbl_rule_posting" (
-	"server"	INTEGER NOT NULL UNIQUE,
-	"channel"	INTEGER NOT NULL UNIQUE,
-	"message"	INTEGER UNIQUE,
+	"server"	BIGINT NOT NULL UNIQUE,
+	"channel"	BIGINT NOT NULL UNIQUE,
+	"message"	BIGINT UNIQUE,
 	PRIMARY KEY("server")
 );
 
 CREATE TABLE "tbl_active_role_settings" (
-	"server"	INTEGER,
-	"role"	INTEGER NOT NULL UNIQUE,
+	"server"	BIGINT,
+	"role"	BIGINT NOT NULL UNIQUE,
 	"gap"	INTEGER NOT NULL,
 	"duration"	INTEGER NOT NULL,
 	"max"	INTEGER NOT NULL,
