@@ -187,7 +187,7 @@ async def help(message):
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
                 output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
-                output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again."
+                output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
             if IS_PAYDAY_ENABLED:
                 output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
             elif message.guild.id == 587508374820618240:
