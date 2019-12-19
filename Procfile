@@ -1,1 +1,1 @@
-Midnight: python Midnight.py
+release: python Midnight.py
