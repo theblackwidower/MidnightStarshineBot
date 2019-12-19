@@ -22,7 +22,7 @@ import discord
 from dotenv import load_dotenv
 
 import datetime
-import sqlite3
+import psycopg2
 import math
 
 import sys
@@ -72,9 +72,9 @@ ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 load_dotenv()
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 ERROR_LOG = os.getenv('ERROR_LOG')
-DATABASE_LOCATION = os.getenv('DATABASE_LOCATION')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-conn = sqlite3.connect(DATABASE_LOCATION)
+conn = psycopg2.connect(DATABASE_URL)
 
 client = discord.Client()
 
@@ -390,13 +390,13 @@ async def setupActive(message):
                 await message.channel.send("The *activity gap* has to be less than the *minimum activity duration*, which has to be less than the *maximum period of inactivity*.")
             else:
                 c = conn.cursor()
-                c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+                c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
                 data = c.fetchone()
                 if data[0] > 0:
-                    c.execute('UPDATE tbl_active_role_settings SET role = ?, gap = ?, duration = ?, max = ? WHERE server = ?', (role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id))
+                    c.execute('UPDATE tbl_active_role_settings SET role = %s, gap = %s, duration = %s, max = %s WHERE server = %s', (role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id))
                     output = "Active user role successfully updated with the following parameters:\n"
                 else:
-                    c.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES (?, ?, ?, ?, ?)', (message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds()))
+                    c.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES (%s, %s, %s, %s, %s)', (message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds()))
                     output = "Active user role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user who sends at least one message every __" + timeDeltaToString(gap) + "__...\n"
@@ -409,10 +409,10 @@ async def clearActive(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         c = conn.cursor()
-        c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+        c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
         data = c.fetchone()
         if data[0] > 0:
-            c.execute('DELETE FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+            c.execute('DELETE FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
             await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
             conn.commit()
         else:
@@ -421,7 +421,7 @@ async def clearActive(message):
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
         c = conn.cursor()
-        c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = ?', (message.guild.id,))
+        c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
         data = c.fetchone()
         if data is not None:
             role = message.guild.get_role(data[0])
@@ -445,7 +445,7 @@ async def checkActive(message):
 
 async def purgeActiveServer(server):
     c = conn.cursor()
-    c.execute('SELECT role FROM tbl_active_role_settings WHERE server = ?', (server.id,))
+    c.execute('SELECT role FROM tbl_active_role_settings WHERE server = %s', (server.id,))
     data = c.fetchone()
     if data is not None:
         activeRole = server.get_role(data[0])
@@ -460,7 +460,7 @@ async def purgeActiveMember(member):
 
     if isinstance(member, discord.Member) and not member.bot and (lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now()):
         c = conn.cursor()
-        c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = ?', (member.guild.id,))
+        c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
         data = c.fetchone()
         if data is not None:
             role = member.guild.get_role(data[0])
@@ -507,11 +507,11 @@ async def payday(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and IS_PAYDAY_ENABLED:
         c = conn.cursor()
-        c.execute('SELECT funds, last_payday FROM tbl_currency WHERE server_id = ? AND member_id = ?', (message.guild.id, message.author.id))
+        c.execute('SELECT funds, last_payday FROM tbl_currency WHERE server_id = %s AND member_id = %s', (message.guild.id, message.author.id))
         data = c.fetchone()
         if data is None:
             currentFunds = PAYDAY_AMOUNT
-            c.execute('INSERT INTO tbl_currency (server_id, member_id, funds, last_payday) VALUES (?, ?, ?, ?)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
+            c.execute('INSERT INTO tbl_currency (server_id, member_id, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
             await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
         else:
             currentFunds = data[0]
@@ -519,7 +519,7 @@ async def payday(message):
             currentTime = datetime.datetime.now()
             if lastPayday + PAYDAY_COOLDOWN < currentTime:
                 currentFunds += PAYDAY_AMOUNT
-                c.execute('UPDATE tbl_currency SET funds = ?, last_payday = ? WHERE server_id = ? AND member_id = ?', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
+                c.execute('UPDATE tbl_currency SET funds = %s, last_payday = %s WHERE server_id = %s AND member_id = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
                 await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
             else:
                 timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime
@@ -596,8 +596,8 @@ async def setRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         c = conn.cursor()
-        c.execute('INSERT INTO tbl_rules (server, content) VALUES (?, ?)', (server_id, parsing[2]))
-        c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = ?', (server_id,))
+        c.execute('INSERT INTO tbl_rules (server, content) VALUES (%s, %s)', (server_id, parsing[2]))
+        c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = %s', (server_id,))
         data = c.fetchone()
         await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
         conn.commit()
@@ -608,7 +608,7 @@ async def getRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
         if parsing[2].isdigit():
             c = conn.cursor()
-            c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
+            c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (message.guild.id,))
             data = c.fetchall()
             rule_num = int(parsing[2])
             if rule_num <= len(data) and rule_num > 0:
@@ -621,7 +621,7 @@ async def getRule(message):
 
 def getRuleId(server_id, rule_num):
     c = conn.cursor()
-    c.execute('SELECT id FROM tbl_rules WHERE server = ?', (server_id,))
+    c.execute('SELECT id FROM tbl_rules WHERE server = %s', (server_id,))
     data = c.fetchall()
     if rule_num <= len(data) and rule_num > 0:
         returnValue = data[rule_num - 1][0]
@@ -637,7 +637,7 @@ async def editRule(message):
             rule_id = getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
                 c = conn.cursor()
-                c.execute('UPDATE tbl_rules SET content = ? WHERE id = ?', (parsing[2], rule_id))
+                c.execute('UPDATE tbl_rules SET content = %s WHERE id = %s', (parsing[2], rule_id))
                 await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
                 conn.commit()
                 await updateRuleChannel(message)
@@ -653,7 +653,7 @@ async def deleteRule(message):
             rule_id = getRuleId(message.guild.id, int(parsing[2]))
             if rule_id is not None:
                 c = conn.cursor()
-                c.execute('DELETE FROM tbl_rules WHERE id = ?', (rule_id,))
+                c.execute('DELETE FROM tbl_rules WHERE id = %s', (rule_id,))
                 await message.channel.send("Rule #" + parsing[2] + " has been deleted")
                 conn.commit()
                 await updateRuleChannel(message)
@@ -666,7 +666,7 @@ async def getAllRules(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
         c = conn.cursor()
-        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
+        c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (message.guild.id,))
         data = c.fetchall()
         count = len(data)
         output = "**SERVER RULES** for " + message.guild.name + ":"
@@ -682,7 +682,7 @@ async def getRuleBackup(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         c = conn.cursor()
-        c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (message.guild.id,))
+        c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (message.guild.id,))
         data = c.fetchall()
         count = len(data)
         output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
@@ -706,12 +706,12 @@ async def setRuleChannel(message):
             ruleChannel = message.channel_mentions[0]
             server_id = message.guild.id
             c = conn.cursor()
-            c.execute('SELECT channel FROM tbl_rule_posting WHERE server = ?', (server_id,))
+            c.execute('SELECT channel FROM tbl_rule_posting WHERE server = %s', (server_id,))
             oldData = c.fetchone()
             if oldData is not None and oldData[0] == ruleChannel.id:
                 await message.channel.send("The rules are already posted in that channel.")
             else:
-                c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+                c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (server_id,))
                 rulesData = c.fetchall()
                 count = len(rulesData)
                 ruleOutput = "**RULES:**"
@@ -720,9 +720,9 @@ async def setRuleChannel(message):
                     ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
                 ruleMessage = await ruleChannel.send(ruleOutput)
                 if oldData is None:
-                    c.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES (?, ?, ?)', (server_id, ruleChannel.id, ruleMessage.id))
+                    c.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES (%s, %s, %s)', (server_id, ruleChannel.id, ruleMessage.id))
                 else:
-                    c.execute('UPDATE tbl_rule_posting SET channel = ?, message = ? WHERE server = ?', (ruleChannel.id, ruleMessage.id, server_id))
+                    c.execute('UPDATE tbl_rule_posting SET channel = %s, message = %s WHERE server = %s', (ruleChannel.id, ruleMessage.id, server_id))
                 await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
                 conn.commit()
 
@@ -731,7 +731,7 @@ async def clearRuleChannel(message):
     if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         c = conn.cursor()
-        c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = ?', (server_id,))
+        c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = %s', (server_id,))
         data = c.fetchone()
         if data is None:
             await message.channel.send("No rule postings recorded.")
@@ -742,19 +742,19 @@ async def clearRuleChannel(message):
                 await ruleMessage.delete()
             except discord.errors.NotFound:
                 pass
-            c.execute('DELETE FROM tbl_rule_posting WHERE server = ?', (server_id,))
+            c.execute('DELETE FROM tbl_rule_posting WHERE server = %s', (server_id,))
             await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
             conn.commit()
 
 async def updateRuleChannel(message):
     server_id = message.guild.id
     c = conn.cursor()
-    c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = ?', (server_id,))
+    c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = %s', (server_id,))
     messageData = c.fetchone()
     if messageData is not None:
         try:
             ruleMessage = await message.guild.get_channel(messageData[0]).fetch_message(messageData[1])
-            c.execute('SELECT content FROM tbl_rules WHERE server = ? ORDER BY id', (server_id,))
+            c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (server_id,))
             rulesData = c.fetchall()
             count = len(rulesData)
             ruleOutput = "**RULES:**"
