@@ -55,6 +55,10 @@ RULE_GET_BACKUP_COMMAND = "getrulebackup"
 RULE_CHANNEL_SET_COMMAND = "setrulechannel"
 RULE_CHANNEL_CLEAR_COMMAND = "clearrulechannel"
 
+MOD_KICK_COMMAND = "kick"
+MOD_BAN_SIMPLE_COMMAND = "ban"
+MOD_BAN_DELETE_COMMAND = "spamban"
+
 MAX_CHARS = 2000
 
 PAYDAY_AMOUNT = 250
@@ -157,6 +161,10 @@ async def on_message(message):
             await getRuleBackup(message)
             await setRuleChannel(message)
             await clearRuleChannel(message)
+
+            await kick(message)
+            await ban(message)
+            await banDelete(message)
         elif isinstance(message.channel, discord.DMChannel):
             await clearDms(message)
     await checkActive(message)
@@ -172,7 +180,8 @@ async def close():
 async def help(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
-        isManagePerms = message.author.permissions_in(message.channel).manage_guild
+        userPerms = message.author.permissions_in(message.channel)
+        isManagePerms = userPerms.manage_guild
 
         output = "Hello, I am Midnight Starshine. Your friendly neighbourhood Discord bot. Here to help in any way I can.\n"
         output += "Would you like to take a look at my full source code? Naughty...\n"
@@ -202,8 +211,24 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
                 output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
                 output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
+            if userPerms.kick_members:
+                output += "`" + COMMAND_PREFIX + MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
+            if userPerms.ban_members:
+                output += "`" + COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
+                if userPerms.manage_messages:
+                    output += "`" + COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
         elif isinstance(message.channel, discord.DMChannel):
             output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
+
+        if len(output) > MAX_CHARS:
+            outputLines = output.split("\n")
+            output = ""
+            for line in outputLines:
+                if len(output) + len(line) <= MAX_CHARS - 2:
+                    output += line + "\n"
+                else:
+                    await message.channel.send(output)
+                    output = line + "\n"
 
         await message.channel.send(output)
 
@@ -259,6 +284,14 @@ def parseRole(server, string):
     if role is None:
         role = discord.utils.get(server.roles, name=string)
     return role
+
+def parseMember(server, string):
+    member = None
+    if string.startswith("<@") and string.endswith(">"):
+        memberId = string[2:len(string) - 1]
+        if memberId.isdigit():
+            member = server.get_member(int(memberId))
+    return member
 
 async def rolecall(message):
     parsing = message.content.partition(" ")
@@ -764,5 +797,56 @@ async def updateRuleChannel(message):
             await ruleMessage.edit(content=ruleOutput)
         except discord.errors.NotFound:
             await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
+
+async def kick(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_KICK_COMMAND and message.author.permissions_in(message.channel).kick_members:
+        parsing = parsing[2].partition(" ")
+        member = parseMember(message.guild, parsing[0])
+        if member is None:
+            await message.channel.send("Member not found.")
+        else:
+            if parsing[2] == "":
+                reason_message = "."
+            else:
+                reason_message = " for: " + parsing[2]
+            await member.create_dm()
+            await member.dm_channel.send("You were kicked from " + message.guild.name + reason_message)
+            await member.kick(reason=parsing[2])
+            await message.channel.send("Member " + member.mention + " kicked" + reason_message)
+
+async def ban(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND and message.author.permissions_in(message.channel).ban_members:
+        parsing = parsing[2].partition(" ")
+        member = parseMember(message.guild, parsing[0])
+        if member is None:
+            await message.channel.send("Member not found.")
+        else:
+            if parsing[2] == "":
+                reason_message = "."
+            else:
+                reason_message = " for: " + parsing[2]
+            await member.create_dm()
+            await member.dm_channel.send("You were banned from " + message.guild.name + reason_message)
+            await member.ban(reason=parsing[2], delete_message_days=0)
+            await message.channel.send("Member " + member.mention + " banned" + reason_message)
+
+async def banDelete(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND and message.author.permissions_in(message.channel).ban_members and message.author.permissions_in(message.channel).manage_messages:
+        parsing = parsing[2].partition(" ")
+        member = parseMember(message.guild, parsing[0])
+        if member is None:
+            await message.channel.send("Member not found.")
+        else:
+            if parsing[2] == "":
+                reason_message = "."
+            else:
+                reason_message = " for: " + parsing[2]
+            await member.create_dm()
+            await member.dm_channel.send("You were banned from " + message.guild.name + reason_message)
+            await member.ban(reason=parsing[2], delete_message_days=1)
+            await message.channel.send("Member " + member.mention + " has had all messages from the past day deleted and has been banned" + reason_message)
 
 client.run(DISCORD_TOKEN)
