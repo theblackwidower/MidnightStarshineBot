@@ -55,6 +55,8 @@ RULE_GET_BACKUP_COMMAND = "getrulebackup"
 RULE_CHANNEL_SET_COMMAND = "setrulechannel"
 RULE_CHANNEL_CLEAR_COMMAND = "clearrulechannel"
 
+MOD_MUTE_COMMAND = "mute"
+MOD_UNMUTE_COMMAND = "unmute"
 MOD_KICK_COMMAND = "kick"
 MOD_BAN_SIMPLE_COMMAND = "ban"
 MOD_BAN_DELETE_COMMAND = "spamban"
@@ -162,6 +164,8 @@ async def on_message(message):
             await setRuleChannel(message)
             await clearRuleChannel(message)
 
+            await mute(message)
+            await unmute(message)
             await kick(message)
             await ban(message)
             await banDelete(message)
@@ -212,6 +216,8 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
                 output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
             if userPerms.kick_members:
+                output += "`" + COMMAND_PREFIX + MOD_MUTE_COMMAND + "`: Will mute the specified user in all channels.\n"
+                output += "`" + COMMAND_PREFIX + MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in all channels.\n"
                 output += "`" + COMMAND_PREFIX + MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
             if userPerms.ban_members:
                 output += "`" + COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
@@ -797,6 +803,41 @@ async def updateRuleChannel(message):
             await ruleMessage.edit(content=ruleOutput)
         except discord.errors.NotFound:
             await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
+
+async def mute(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_MUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
+        member = parseMember(message.guild, parsing[2])
+        if member is None:
+            await message.channel.send("Member not found.")
+        else:
+            for channel in message.guild.channels:
+                if isinstance(channel, discord.CategoryChannel):
+                    await channel.set_permissions(member, send_messages=False, speak=False)
+                elif isinstance(channel, discord.TextChannel):
+                    await channel.set_permissions(member, send_messages=False)
+                elif isinstance(channel, discord.VoiceChannel):
+                    await channel.set_permissions(member, speak=False)
+            await message.channel.send("Member " + member.mention + " muted.")
+
+async def unmute(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_UNMUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
+        member = parseMember(message.guild, parsing[2])
+        if member is None:
+            await message.channel.send("Member not found.")
+        else:
+            for channel in message.guild.channels:
+                if isinstance(channel, discord.CategoryChannel):
+                    await channel.set_permissions(member, send_messages=None, speak=None)
+                elif isinstance(channel, discord.TextChannel):
+                    await channel.set_permissions(member, send_messages=None)
+                elif isinstance(channel, discord.VoiceChannel):
+                    await channel.set_permissions(member, speak=None)                    
+            for channel in message.guild.channels:
+                if channel.overwrites_for(member).is_empty():
+                    await channel.set_permissions(member, overwrite=None)
+            await message.channel.send("Member " + member.mention + " unmuted.")
 
 async def kick(message):
     parsing = message.content.partition(" ")
