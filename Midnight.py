@@ -847,13 +847,16 @@ async def kick(message):
         if member is None:
             await message.channel.send("Member not found.")
         else:
+            reason_record = "by: " + str(message.author)
             if parsing[2] == "":
                 reason_message = "."
+                reason_record += " With No Reason Given."
             else:
                 reason_message = " for: " + parsing[2]
+                reason_record += " for: " + parsing[2]
             await member.create_dm()
             await member.dm_channel.send("You were kicked from " + message.guild.name + reason_message)
-            await member.kick(reason=parsing[2])
+            await member.kick(reason=reason_record)
             await message.channel.send("Member " + member.mention + " kicked" + reason_message)
 
 async def ban(message):
@@ -864,13 +867,16 @@ async def ban(message):
         if member is None:
             await message.channel.send("Member not found.")
         else:
+            reason_record = "by: " + str(message.author)
             if parsing[2] == "":
                 reason_message = "."
+                reason_record += " With No Reason Given."
             else:
                 reason_message = " for: " + parsing[2]
+                reason_record += " for: " + parsing[2]
             await member.create_dm()
             await member.dm_channel.send("You were banned from " + message.guild.name + reason_message)
-            await member.ban(reason=parsing[2], delete_message_days=0)
+            await member.ban(reason=reason_record, delete_message_days=0)
             await message.channel.send("Member " + member.mention + " banned" + reason_message)
 
 async def banDelete(message):
@@ -881,13 +887,16 @@ async def banDelete(message):
         if member is None:
             await message.channel.send("Member not found.")
         else:
+            reason_record = "by: " + str(message.author)
             if parsing[2] == "":
                 reason_message = "."
+                reason_record += " With No Reason Given."
             else:
                 reason_message = " for: " + parsing[2]
+                reason_record += " for: " + parsing[2]
             await member.create_dm()
             await member.dm_channel.send("You were banned from " + message.guild.name + reason_message)
-            await member.ban(reason=parsing[2], delete_message_days=1)
+            await member.ban(reason=reason_record, delete_message_days=1)
             await message.channel.send("Member " + member.mention + " has had all messages from the past day deleted and has been banned" + reason_message)
 
 client.run(DISCORD_TOKEN)
