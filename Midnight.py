@@ -810,14 +810,13 @@ async def mute(message):
         member = parseMember(message.guild, parsing[2])
         if member is None:
             await message.channel.send("Member not found.")
+        elif member.guild_permissions.administrator:
+            await message.channel.send("Cannot mute any user with full admin permissions.")
         else:
             for channel in message.guild.channels:
-                if isinstance(channel, discord.CategoryChannel):
+                permissions = channel.permissions_for(member)
+                if permissions.send_messages or permissions.speak:
                     await channel.set_permissions(member, send_messages=False, speak=False)
-                elif isinstance(channel, discord.TextChannel):
-                    await channel.set_permissions(member, send_messages=False)
-                elif isinstance(channel, discord.VoiceChannel):
-                    await channel.set_permissions(member, speak=False)
             await message.channel.send("Member " + member.mention + " muted.")
 
 async def unmute(message):
@@ -828,15 +827,13 @@ async def unmute(message):
             await message.channel.send("Member not found.")
         else:
             for channel in message.guild.channels:
-                if isinstance(channel, discord.CategoryChannel):
-                    await channel.set_permissions(member, send_messages=None, speak=None)
-                elif isinstance(channel, discord.TextChannel):
-                    await channel.set_permissions(member, send_messages=None)
-                elif isinstance(channel, discord.VoiceChannel):
-                    await channel.set_permissions(member, speak=None)                    
-            for channel in message.guild.channels:
-                if channel.overwrites_for(member).is_empty():
-                    await channel.set_permissions(member, overwrite=None)
+                permissions = channel.overwrites_for(member)
+                if permissions is not None and (permissions.send_messages == False or permissions.speak == False):
+                    permissions.update(send_messages=None, speak=None)
+                    if permissions.is_empty():
+                        await channel.set_permissions(member, overwrite=None)
+                    else:
+                        await channel.set_permissions(member, overwrite=permissions)
             await message.channel.send("Member " + member.mention + " unmuted.")
 
 async def kick(message):
