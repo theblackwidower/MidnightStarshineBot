@@ -61,6 +61,8 @@ MOD_KICK_COMMAND = "kick"
 MOD_BAN_SIMPLE_COMMAND = "ban"
 MOD_BAN_DELETE_COMMAND = "spamban"
 
+TRANSACTION_PAYDAY = "Payday"
+
 MAX_CHARS = 2000
 
 PAYDAY_AMOUNT = 250
@@ -551,6 +553,7 @@ async def payday(message):
         if data is None:
             currentFunds = PAYDAY_AMOUNT
             c.execute('INSERT INTO tbl_currency (server, member, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
+            c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, PAYDAY_AMOUNT, TRANSACTION_PAYDAY))
             await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
         else:
             currentFunds = data[0]
@@ -559,6 +562,7 @@ async def payday(message):
             if lastPayday + PAYDAY_COOLDOWN < currentTime:
                 currentFunds += PAYDAY_AMOUNT
                 c.execute('UPDATE tbl_currency SET funds = %s, last_payday = %s WHERE server = %s AND member = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
+                c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, PAYDAY_AMOUNT, TRANSACTION_PAYDAY))
                 await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
             else:
                 timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime

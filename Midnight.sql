@@ -25,6 +25,15 @@ CREATE TABLE "tbl_currency" (
   PRIMARY KEY("server","member")
 );
 
+CREATE TABLE "tbl_transactions" (
+  "server" BIGINT NOT NULL,
+  "member" BIGINT NOT NULL,
+  "date" INTEGER NOT NULL,
+  "amount_in" INTEGER NOT NULL,
+  "notes" TEXT,
+  PRIMARY KEY("server", "member", "date")
+);
+
 CREATE TABLE "tbl_rules" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "server" BIGINT NOT NULL,
