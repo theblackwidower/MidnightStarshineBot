@@ -546,11 +546,11 @@ async def payday(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and IS_PAYDAY_ENABLED:
         c = conn.cursor()
-        c.execute('SELECT funds, last_payday FROM tbl_currency WHERE server_id = %s AND member_id = %s', (message.guild.id, message.author.id))
+        c.execute('SELECT funds, last_payday FROM tbl_currency WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
         data = c.fetchone()
         if data is None:
             currentFunds = PAYDAY_AMOUNT
-            c.execute('INSERT INTO tbl_currency (server_id, member_id, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
+            c.execute('INSERT INTO tbl_currency (server, member, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
             await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
         else:
             currentFunds = data[0]
@@ -558,7 +558,7 @@ async def payday(message):
             currentTime = datetime.datetime.now()
             if lastPayday + PAYDAY_COOLDOWN < currentTime:
                 currentFunds += PAYDAY_AMOUNT
-                c.execute('UPDATE tbl_currency SET funds = %s, last_payday = %s WHERE server_id = %s AND member_id = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
+                c.execute('UPDATE tbl_currency SET funds = %s, last_payday = %s WHERE server = %s AND member = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
                 await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
             else:
                 timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime

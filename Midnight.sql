@@ -17,12 +17,12 @@
   -- ------------------------------------------------------------------------
 
 CREATE TABLE "tbl_currency" (
-  "server_id" BIGINT NOT NULL,
-  "member_id" BIGINT NOT NULL,
+  "server" BIGINT NOT NULL,
+  "member" BIGINT NOT NULL,
   "funds" INTEGER NOT NULL,
   -- Will last until January 19 2038 03:14:07 UTC
   "last_payday" INTEGER,
-  PRIMARY KEY("server_id","member_id")
+  PRIMARY KEY("server","member")
 );
 
 CREATE TABLE "tbl_rules" (
