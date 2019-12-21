@@ -16,7 +16,7 @@
   -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -- ------------------------------------------------------------------------
 
-CREATE TABLE "tbl_currency" (
+CREATE TABLE "tbl_accounts" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,
   "funds" INTEGER NOT NULL,
