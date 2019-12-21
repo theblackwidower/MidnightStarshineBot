@@ -813,10 +813,11 @@ async def mute(message):
         elif member.guild_permissions.administrator:
             await message.channel.send("Cannot mute any user with full admin permissions.")
         else:
+            reason = "Muting " + str(member) + " on " + str(message.author) + "'s order."
             for channel in message.guild.channels:
                 permissions = channel.permissions_for(member)
                 if permissions.send_messages or permissions.speak:
-                    await channel.set_permissions(member, send_messages=False, speak=False)
+                    await channel.set_permissions(member, send_messages=False, speak=False, reason=reason)
             await message.channel.send("Member " + member.mention + " muted.")
 
 async def unmute(message):
@@ -826,14 +827,15 @@ async def unmute(message):
         if member is None:
             await message.channel.send("Member not found.")
         else:
+            reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
             for channel in message.guild.channels:
                 permissions = channel.overwrites_for(member)
                 if permissions is not None and (permissions.send_messages == False or permissions.speak == False):
                     permissions.update(send_messages=None, speak=None)
                     if permissions.is_empty():
-                        await channel.set_permissions(member, overwrite=None)
+                        await channel.set_permissions(member, overwrite=None, reason=reason)
                     else:
-                        await channel.set_permissions(member, overwrite=permissions)
+                        await channel.set_permissions(member, overwrite=permissions, reason=reason)
             await message.channel.send("Member " + member.mention + " unmuted.")
 
 async def kick(message):
