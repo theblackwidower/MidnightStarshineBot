@@ -480,7 +480,7 @@ async def checkActive(message):
                     if message.created_at <= lastMessageTime + gap:
                         startMessageTime = activeRecordStart[message.guild.id][message.author.id]
                         if message.created_at >= startMessageTime + duration:
-                            await message.author.add_roles(role, reason="Been sending at least one message per " + str(gap) + " for " + str(duration) + ".")
+                            await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
                     else:
                         activeRecordStart[message.guild.id][message.author.id] = message.created_at
                 except KeyError:
@@ -540,7 +540,7 @@ async def purgeActiveMember(member):
                         lastMessageTime = threshold
 
                 if lastMessageTime <= threshold:
-                    await member.remove_roles(role, reason="Can't find any messages from this user in the past " + str(max) + ".")
+                    await member.remove_roles(role, reason="Can't find any messages from this user in the past " + timeDeltaToString(max) + ".")
                 else:
                     activeCheckTime[member.guild.id][member.id] = datetime.datetime.now()
 
