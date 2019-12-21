@@ -22,7 +22,7 @@ CREATE TABLE "tbl_currency" (
   "funds" INTEGER NOT NULL,
   -- Will last until January 19 2038 03:14:07 UTC
   "last_payday" INTEGER,
-  PRIMARY KEY("server","member")
+  PRIMARY KEY("server", "member")
 );
 
 CREATE TABLE "tbl_transactions" (
@@ -35,23 +35,21 @@ CREATE TABLE "tbl_transactions" (
 );
 
 CREATE TABLE "tbl_rules" (
-  "id" SERIAL NOT NULL PRIMARY KEY,
+  "id" SERIAL PRIMARY KEY,
   "server" BIGINT NOT NULL,
   "content" TEXT NOT NULL
 );
 
 CREATE TABLE "tbl_rule_posting" (
-  "server" BIGINT NOT NULL UNIQUE,
+  "server" BIGINT PRIMARY KEY,
   "channel" BIGINT NOT NULL UNIQUE,
-  "message" BIGINT UNIQUE,
-  PRIMARY KEY("server")
+  "message" BIGINT UNIQUE
 );
 
 CREATE TABLE "tbl_active_role_settings" (
-  "server" BIGINT,
+  "server" BIGINT PRIMARY KEY,
   "role" BIGINT NOT NULL UNIQUE,
   "gap" INTEGER NOT NULL,
   "duration" INTEGER NOT NULL,
-  "max" INTEGER NOT NULL,
-  PRIMARY KEY("server")
+  "max" INTEGER NOT NULL
 );
