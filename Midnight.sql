@@ -25,6 +25,13 @@ CREATE TABLE "tbl_currency" (
   PRIMARY KEY("server", "member")
 );
 
+CREATE TABLE "tbl_payday_settings" (
+  "server" BIGINT PRIMARY KEY,
+  "amount" INTEGER NOT NULL,
+  "currency_name" TEXT NOT NULL,
+  "cooldown" INTEGER NOT NULL
+);
+
 CREATE TABLE "tbl_transactions" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,

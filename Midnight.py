@@ -41,6 +41,7 @@ MIDNIGHTS_TRUE_MASTER = 204818040628576256
 HELP_COMMAND = "help"
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
+PAYDAY_SETUP_COMMAND = "setuppayday"
 PAYDAY_COMMAND = "payday"
 CLEAR_DMS_COMMAND = "cleardms"
 SETUP_ACTIVE_ROLE_COMMAND = "setupactiverole"
@@ -153,6 +154,7 @@ async def on_message(message):
         if isinstance(message.channel, discord.TextChannel):
             await echo(message)
             await rolecall(message)
+            await setupPayday(message)
             await payday(message)
             await setupActive(message)
             await clearActive(message)
@@ -203,6 +205,7 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
                 output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
                 output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+                output += "`" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
             if IS_PAYDAY_ENABLED:
                 output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
             elif message.guild.id == 587508374820618240:
@@ -543,6 +546,38 @@ async def purgeActiveMember(member):
 
             except ValueError:
                 pass
+
+async def setupPayday(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + PAYDAY_SETUP_COMMAND:
+        parsing = parsing[2].partition(" ")
+        amountString = parsing[0]
+        parsing = parsing[2].rpartition(" ")
+        currencyName = parsing[0]
+        cooldownString = parsing[2]
+        if amountString == "" or currencyName == "" or cooldownString == "":
+            await message.channel.send("I'm missing some information, I'm sure of it. You need to provide me with an amount of money to dole out, a currency name, and a cooldown time.")
+        elif not amountString.isdigit():
+            await message.channel.send("Please enter a number for the amount of money we're expected to dole out each payday.")
+        else:
+            amount = int(amountString)
+            cooldown = parseTimeDelta(cooldownString)
+            if cooldown is None:
+                await message.channel.send("Cannot interpret what you entered for cooldown time. Please enter a number, followed by 'd', 'h', 'm', or 's', for day, hour, minute, or second.")
+            else:
+                c = conn.cursor()
+                c.execute('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+                data = c.fetchone()
+                if data[0] > 0:
+                    c.execute('UPDATE tbl_payday_settings SET amount = %s, currency_name = %s, cooldown = %s WHERE server = %s', (amount, currencyName, cooldown.total_seconds(), message.guild.id))
+                    output = "Payday function successfully updated with the following parameters:\n"
+                else:
+                    c.execute('INSERT INTO tbl_payday_settings (server, amount, currency_name, cooldown) VALUES (%s, %s, %s, %s)', (message.guild.id, amount, currencyName, cooldown.total_seconds()))
+                    output = "Payday function successfully set up with the following parameters:\n"
+                output += "We'll be giving out __" + amountString + "__ '__" + currencyName + "__' to any user who runs the payday command.\n"
+                output += "And after running the command they must wait __" + timeDeltaToString(cooldown) + "__ before running it again.\n"
+                await message.channel.send(output)
+                conn.commit()
 
 async def payday(message):
     parsing = message.content.partition(" ")
