@@ -83,8 +83,6 @@ DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 ERROR_LOG = os.getenv('ERROR_LOG')
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-conn = psycopg2.connect(DATABASE_URL)
-
 client = discord.Client()
 
 @client.event
@@ -185,10 +183,6 @@ async def on_message(message):
 async def on_message_edit(old_message, message):
     await emoji_censor(message)
 
-@client.event
-async def close():
-    conn.close()
-
 async def help(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
@@ -203,6 +197,7 @@ async def help(message):
         output += "\n**COMMANDS:**\n"
         output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
         if isinstance(message.channel, discord.TextChannel):
+            conn = psycopg2.connect(DATABASE_URL)
             c = conn.cursor()
             c.execute('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
             paydayData = c.fetchone()
@@ -210,6 +205,7 @@ async def help(message):
             currencyData = c.fetchone()
             c.execute('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
             paidRolesData = c.fetchone()
+            conn.close()
             if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
@@ -449,6 +445,7 @@ async def setupActive(message):
             elif gap >= duration or duration >= max:
                 await message.channel.send("The *activity gap* has to be less than the *minimum activity duration*, which has to be less than the *maximum period of inactivity*.")
             else:
+                conn = psycopg2.connect(DATABASE_URL)
                 c = conn.cursor()
                 c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
                 data = c.fetchone()
@@ -464,10 +461,12 @@ async def setupActive(message):
                 output += "And we'll take the role away if they stop posting for __" + timeDeltaToString(max) + "__.\n"
                 await message.channel.send(output)
                 conn.commit()
+                conn.close()
 
 async def clearActive(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
         data = c.fetchone()
@@ -477,12 +476,15 @@ async def clearActive(message):
             conn.commit()
         else:
             await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
+        conn.close()
 
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
         data = c.fetchone()
+        conn.close()
         if data is not None:
             role = message.guild.get_role(data[0])
             gap = datetime.timedelta(seconds=data[1])
@@ -504,9 +506,11 @@ async def checkActive(message):
                 activeRecordLast[message.guild.id][message.author.id] = message.created_at
 
 async def purgeActiveServer(server):
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
     c.execute('SELECT role FROM tbl_active_role_settings WHERE server = %s', (server.id,))
     data = c.fetchone()
+    conn.close()
     if data is not None:
         activeRole = server.get_role(data[0])
         for member in activeRole.members:
@@ -519,9 +523,11 @@ async def purgeActiveMember(member):
         lastCheck = None
 
     if isinstance(member, discord.Member) and not member.bot and (lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now()):
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
         data = c.fetchone()
+        conn.close()
         if data is not None:
             role = member.guild.get_role(data[0])
             max = datetime.timedelta(seconds=data[1])
@@ -581,6 +587,7 @@ async def setupPayday(message):
             if cooldown is None:
                 await message.channel.send("Cannot interpret what you entered for cooldown time. Please enter a number, followed by 'd', 'h', 'm', or 's', for day, hour, minute, or second.")
             else:
+                conn = psycopg2.connect(DATABASE_URL)
                 c = conn.cursor()
                 c.execute('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
                 data = c.fetchone()
@@ -600,10 +607,12 @@ async def setupPayday(message):
                 output += "And after running the command they must wait __" + timeDeltaToString(cooldown) + "__ before running it again.\n"
                 await message.channel.send(output)
                 conn.commit()
+                conn.close()
 
 async def clearPayday(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
         data = c.fetchone()
@@ -613,10 +622,12 @@ async def clearPayday(message):
             conn.commit()
         else:
             await message.channel.send("Payday feature has not even been set up, so there's no reason to clear it.")
+        conn.close()
 
 async def payday(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
         serverData = c.fetchone()
@@ -646,10 +657,12 @@ async def payday(message):
                     timeLeft = lastPayday + cooldown - currentTime
                     await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
             conn.commit()
+        conn.close()
 
 async def setupRole(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_roles:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
         currencyData = c.fetchone()
@@ -678,6 +691,7 @@ async def setupRole(message):
                         output = "Role '" + role.name + "' now added to the menu, and costs " + costString + " " + currencyName + "."
                     await message.channel.send(output)
                     conn.commit()
+        conn.close()
 
 async def removeRole(message):
     parsing = message.content.partition(" ")
@@ -686,6 +700,7 @@ async def removeRole(message):
         if role is None:
             await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
         else:
+            conn = psycopg2.connect(DATABASE_URL)
             c = conn.cursor()
             c.execute('SELECT COUNT(server) FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
             data = c.fetchone()
@@ -695,15 +710,18 @@ async def removeRole(message):
                 conn.commit()
             else:
                 await message.channel.send("Can't find that role in the menu.")
+            conn.close()
 
 async def roleMenu(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + LIST_ROLES_COMMAND:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
         currencyData = c.fetchone()
         c.execute('SELECT role, cost FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
         allData = c.fetchall()
+        conn.close()
         if currencyData is not None and len(allData) > 0:
             output = "**Available Roles**\n"
             for roleData in allData:
@@ -774,21 +792,25 @@ async def setRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('INSERT INTO tbl_rules (server, content) VALUES (%s, %s)', (server_id, parsing[2]))
         c.execute('SELECT COUNT(id) FROM tbl_rules WHERE server = %s', (server_id,))
         data = c.fetchone()
         await message.channel.send("Rule #" + str(data[0]) + " has been set to: " + parsing[2])
         conn.commit()
+        conn.close()
         await updateRuleChannel(message)
 
 async def getRule(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
         if parsing[2].isdigit():
+            conn = psycopg2.connect(DATABASE_URL)
             c = conn.cursor()
             c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (message.guild.id,))
             data = c.fetchall()
+            conn.close()
             rule_num = int(parsing[2])
             if rule_num <= len(data) and rule_num > 0:
                 await message.channel.send("Rule #" + parsing[2] + ": " + data[rule_num - 1][0])
@@ -799,9 +821,11 @@ async def getRule(message):
 
 
 def getRuleId(server_id, rule_num):
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
     c.execute('SELECT id FROM tbl_rules WHERE server = %s', (server_id,))
     data = c.fetchall()
+    conn.close()
     if rule_num <= len(data) and rule_num > 0:
         returnValue = data[rule_num - 1][0]
     else:
@@ -815,10 +839,12 @@ async def editRule(message):
         if parsing[0].isdigit():
             rule_id = getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
+                conn = psycopg2.connect(DATABASE_URL)
                 c = conn.cursor()
                 c.execute('UPDATE tbl_rules SET content = %s WHERE id = %s', (parsing[2], rule_id))
                 await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
                 conn.commit()
+                conn.close()
                 await updateRuleChannel(message)
             else:
                 await message.channel.send("There is no rule #" + parsing[0])
@@ -831,10 +857,12 @@ async def deleteRule(message):
         if parsing[2].isdigit():
             rule_id = getRuleId(message.guild.id, int(parsing[2]))
             if rule_id is not None:
+                conn = psycopg2.connect(DATABASE_URL)
                 c = conn.cursor()
                 c.execute('DELETE FROM tbl_rules WHERE id = %s', (rule_id,))
                 await message.channel.send("Rule #" + parsing[2] + " has been deleted")
                 conn.commit()
+                conn.close()
                 await updateRuleChannel(message)
             else:
                 await message.channel.send("There is no rule #" + parsing[2])
@@ -844,9 +872,11 @@ async def deleteRule(message):
 async def getAllRules(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (message.guild.id,))
         data = c.fetchall()
+        conn.close()
         count = len(data)
         output = "**SERVER RULES** for " + message.guild.name + ":"
         for i in range(count):
@@ -860,9 +890,11 @@ async def getAllRules(message):
 async def getRuleBackup(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT content FROM tbl_rules WHERE server = %s ORDER BY id', (message.guild.id,))
         data = c.fetchall()
+        conn.close()
         count = len(data)
         output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
         for i in range(count):
@@ -884,6 +916,7 @@ async def setRuleChannel(message):
         else:
             ruleChannel = message.channel_mentions[0]
             server_id = message.guild.id
+            conn = psycopg2.connect(DATABASE_URL)
             c = conn.cursor()
             c.execute('SELECT channel FROM tbl_rule_posting WHERE server = %s', (server_id,))
             oldData = c.fetchone()
@@ -904,11 +937,13 @@ async def setRuleChannel(message):
                     c.execute('UPDATE tbl_rule_posting SET channel = %s, message = %s WHERE server = %s', (ruleChannel.id, ruleMessage.id, server_id))
                 await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
                 conn.commit()
+            conn.close()
 
 async def clearRuleChannel(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
+        conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = %s', (server_id,))
         data = c.fetchone()
@@ -924,9 +959,11 @@ async def clearRuleChannel(message):
             c.execute('DELETE FROM tbl_rule_posting WHERE server = %s', (server_id,))
             await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
             conn.commit()
+        conn.close()
 
 async def updateRuleChannel(message):
     server_id = message.guild.id
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
     c.execute('SELECT channel, message FROM tbl_rule_posting WHERE server = %s', (server_id,))
     messageData = c.fetchone()
@@ -943,6 +980,7 @@ async def updateRuleChannel(message):
             await ruleMessage.edit(content=ruleOutput)
         except discord.errors.NotFound:
             await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
+    conn.close()
 
 async def mute(message):
     parsing = message.content.partition(" ")
