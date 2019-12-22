@@ -46,10 +46,11 @@ $ python Midnight.py
   * YAG Snipe, automatically kicks or bans a specified user, designed to deal with problems related to the bot YAGPDB.xyz.
   * Active user feature assigns custom roles based on user activity rates
   * On-the-fly rule management and lookup through bot commands.
+  * Currency system which allows members to buy roles selected by server admins using a special currency set up by the same admins.
+  * Moderation features (mute, kick, and ban commands)
 
 ## Upcoming Features
 
-  * Currency system ('payday' command)
   * Time-delayed echo
-  * Moderation features (mute, warn, kick, and ban commands)
+  * Additional moderation features (warn, and banish)
   * Automated welcome
