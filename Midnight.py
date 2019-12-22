@@ -46,6 +46,8 @@ PAYDAY_COMMAND = "payday"
 BUY_ROLE_SETUP_COMMAND = "setuprole"
 BUY_ROLE_REMOVE_COMMAND = "removerole"
 LIST_ROLES_COMMAND = "rolemenu"
+BUY_ROLE_COMMAND = "buyrole"
+REFUND_ROLE_COMMAND = "refundrole"
 CLEAR_DMS_COMMAND = "cleardms"
 SETUP_ACTIVE_ROLE_COMMAND = "setupactiverole"
 CLEAR_ACTIVE_ROLE_COMMAND = "clearactiverole"
@@ -66,6 +68,8 @@ MOD_BAN_SIMPLE_COMMAND = "ban"
 MOD_BAN_DELETE_COMMAND = "spamban"
 
 TRANSACTION_PAYDAY = "Payday"
+TRANSACTION_BUY_ROLE = "Buying Role"
+TRANSACTION_REFUND_ROLE = "Refunding Role"
 
 MAX_CHARS = 2000
 
@@ -158,6 +162,8 @@ async def on_message(message):
             await setupRole(message)
             await removeRole(message)
             await roleMenu(message)
+            await buyRole(message)
+            await refundRole(message)
             await setupActive(message)
             await clearActive(message)
 
@@ -222,6 +228,8 @@ async def help(message):
                     output += "`" + COMMAND_PREFIX + BUY_ROLE_REMOVE_COMMAND + "`: Will allow you to remove a role from the purchase list. Just name the role, and it'll be removed.\n"
                 if paidRolesData[0] > 0:
                     output += "`" + COMMAND_PREFIX + LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
+                    output += "`" + COMMAND_PREFIX + BUY_ROLE_COMMAND + "`: Will allow you to buy any specified role for " + currencyData[0] + ".\n"
+                    output += "`" + COMMAND_PREFIX + REFUND_ROLE_COMMAND + "`: Will allow you to return any specified role, and get a full refund in " + currencyData[0] + ".\n"
             output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
@@ -721,6 +729,78 @@ async def roleMenu(message):
                 role = message.guild.get_role(roleData[0])
                 output += role.name + ": " + str(roleData[1]) + " " + currencyData[0] + "\n"
         await message.channel.send(output)
+
+async def buyRole(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + BUY_ROLE_COMMAND:
+        role = parseRole(message.guild, parsing[2])
+        if role is None:
+            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+        elif message.author.roles.count(role) > 0:
+            await message.channel.send("You already have this role.")
+        else:
+            conn = psycopg2.connect(DATABASE_URL)
+            c = conn.cursor()
+            c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+            currencyData = c.fetchone()
+            if currencyData is not None:
+                currencyName = currencyData[0]
+                c.execute('SELECT cost FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
+                costData = c.fetchone()
+                c.execute('SELECT funds FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+                accountData = c.fetchone()
+                if costData is None:
+                    await message.channel.send("Role not available for purchase.")
+                elif accountData is None:
+                    await message.channel.send("Can't find any account data. Please run the payday command (`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`) at least once so we can give you some " + currencyName + ".")
+                else:
+                    roleCost = costData[0]
+                    memberFunds = accountData[0]
+                    if memberFunds < roleCost:
+                        await message.channel.send("The '" + role.name + "' role costs " + str(roleCost) + " " + currencyName + ", and you only have " + str(memberFunds) + " " + currencyName + " in your account.")
+                    else:
+                        memberFunds -= roleCost
+                        c.execute('UPDATE tbl_accounts SET funds = %s WHERE server = %s AND member = %s', (memberFunds, message.guild.id, message.author.id))
+                        c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, -roleCost, TRANSACTION_BUY_ROLE + ": " + role.name + "(" + str(role.id) + ")"))
+                        await message.author.add_roles(role, reason="Purchased the role for " + str(roleCost) + " " + currencyName + ".")
+                        await message.channel.send("Thank you for purchasing the '" + role.name + "' role for " + str(roleCost) + " " + currencyName + ". Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
+                        conn.commit()
+            conn.close()
+
+async def refundRole(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + REFUND_ROLE_COMMAND:
+        role = parseRole(message.guild, parsing[2])
+        if role is None:
+            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+        elif message.author.roles.count(role) == 0:
+            await message.channel.send("You don't have this role.")
+        else:
+            conn = psycopg2.connect(DATABASE_URL)
+            c = conn.cursor()
+            c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+            currencyData = c.fetchone()
+            if currencyData is not None:
+                currencyName = currencyData[0]
+                c.execute('SELECT cost FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
+                costData = c.fetchone()
+                if costData is None:
+                    await message.channel.send("Role cannot be refunded.")
+                else:
+                    roleCost = costData[0]
+                    c.execute('SELECT funds FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+                    accountData = c.fetchone()
+                    if accountData is None:
+                        memberFunds = roleCost
+                        c.execute('INSERT INTO tbl_accounts (server, member, funds) VALUES (%s, %s, %s)', (message.guild.id, message.author.id, currentFunds))
+                    else:
+                        memberFunds = accountData[0] + roleCost
+                        c.execute('UPDATE tbl_accounts SET funds = %s WHERE server = %s AND member = %s', (memberFunds, message.guild.id, message.author.id))
+                    c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, roleCost, TRANSACTION_REFUND_ROLE + ": " + role.name + "(" + str(role.id) + ")"))
+                    await message.author.remove_roles(role, reason="Returned the role for " + str(roleCost) + " " + currencyName + ".")
+                    await message.channel.send("You have returned the '" + role.name + "' role and " + str(roleCost) + " " + currencyName + " has been returned to you. Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
+                    conn.commit()
+            conn.close()
 
 def timeDeltaToString(timeDelta):
     totalSeconds = timeDelta.total_seconds()
