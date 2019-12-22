@@ -489,10 +489,7 @@ async def checkActive(message):
             role = message.guild.get_role(data[0])
             gap = datetime.timedelta(seconds=data[1])
             duration = datetime.timedelta(seconds=data[2])
-
-            try:
-                message.author.roles.index(message.author.guild.get_role(data[0]))
-            except ValueError:
+            if message.author.roles.count(message.author.guild.get_role(data[0])) == 0:
                 try:
                     lastMessageTime = activeRecordLast[message.guild.id][message.author.id]
                     if message.created_at <= lastMessageTime + gap:
@@ -531,8 +528,7 @@ async def purgeActiveMember(member):
         if data is not None:
             role = member.guild.get_role(data[0])
             max = datetime.timedelta(seconds=data[1])
-            try:
-                member.roles.index(role)
+            if member.roles.count(role) > 0:
                 threshold = datetime.datetime.now() - max
 
                 history = await member.history(limit=1, oldest_first=False).flatten()
@@ -565,9 +561,6 @@ async def purgeActiveMember(member):
                     await member.remove_roles(role, reason="Can't find any messages from this user in the past " + timeDeltaToString(max) + ".")
                 else:
                     activeCheckTime[member.guild.id][member.id] = datetime.datetime.now()
-
-            except ValueError:
-                pass
 
 async def setupPayday(message):
     parsing = message.content.partition(" ")
