@@ -103,6 +103,7 @@ async def on_ready():
         setupDataCache(guild.id)
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
+    for guild in client.guilds:
         await purgeActiveServer(guild)
 
 @client.event
