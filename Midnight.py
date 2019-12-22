@@ -506,7 +506,7 @@ async def checkActive(message):
             gap = datetime.timedelta(seconds=data[1])
             duration = datetime.timedelta(seconds=data[2])
             if message.author.roles.count(message.author.guild.get_role(data[0])) == 0:
-                try:
+                if message.author.id in activeRecordLast[message.guild.id]:
                     lastMessageTime = activeRecordLast[message.guild.id][message.author.id]
                     if message.created_at <= lastMessageTime + gap:
                         startMessageTime = activeRecordStart[message.guild.id][message.author.id]
@@ -514,7 +514,7 @@ async def checkActive(message):
                             await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
                     else:
                         activeRecordStart[message.guild.id][message.author.id] = message.created_at
-                except KeyError:
+                else:
                     activeRecordStart[message.guild.id][message.author.id] = message.created_at
                 activeRecordLast[message.guild.id][message.author.id] = message.created_at
 
@@ -530,9 +530,9 @@ async def purgeActiveServer(server):
             await purgeActiveMember(member)
 
 async def purgeActiveMember(member):
-    try:
+    if member.id in activeCheckTime[member.guild.id]:
         lastCheck = activeCheckTime[member.guild.id][member.id]
-    except KeyError:
+    else:
         lastCheck = None
 
     if isinstance(member, discord.Member) and not member.bot and (lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now()):
@@ -548,12 +548,12 @@ async def purgeActiveMember(member):
                 threshold = datetime.datetime.now() - max
 
                 history = await member.history(limit=1, oldest_first=False).flatten()
-                try:
+                if len(history) > 0:
                     if isinstance(history[0].channel, discord.TextChannel):
                         lastMessageTime = history[0].created_at
                     else:
                         lastMessageTime = None
-                except IndexError:
+                else:
                     lastMessageTime = None
 
                 # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
