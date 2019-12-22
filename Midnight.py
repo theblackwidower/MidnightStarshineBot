@@ -549,7 +549,7 @@ async def purgeActiveMember(member):
 
 async def setupPayday(message):
     parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + PAYDAY_SETUP_COMMAND:
+    if parsing[0] == COMMAND_PREFIX + PAYDAY_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         parsing = parsing[2].partition(" ")
         amountString = parsing[0]
         parsing = parsing[2].rpartition(" ")
