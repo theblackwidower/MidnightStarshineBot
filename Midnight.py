@@ -41,6 +41,7 @@ HELP_COMMAND = "help"
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 PAYDAY_SETUP_COMMAND = "setuppayday"
+PAYDAY_CLEAR_COMMAND = "clearpayday"
 PAYDAY_COMMAND = "payday"
 CLEAR_DMS_COMMAND = "cleardms"
 SETUP_ACTIVE_ROLE_COMMAND = "setupactiverole"
@@ -151,6 +152,7 @@ async def on_message(message):
             await echo(message)
             await rolecall(message)
             await setupPayday(message)
+            await clearPayday(message)
             await payday(message)
             await setupActive(message)
             await clearActive(message)
@@ -205,6 +207,7 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
                 output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
                 output += "`" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
+                output += "`" + COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
             if paydayData is not None:
                 output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + paydayData[1] + " into your account. Can only be run once every " + timeDeltaToString(datetime.timedelta(seconds=paydayData[2])) + ".\n"
             output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
@@ -575,6 +578,19 @@ async def setupPayday(message):
                 output += "And after running the command they must wait __" + timeDeltaToString(cooldown) + "__ before running it again.\n"
                 await message.channel.send(output)
                 conn.commit()
+
+async def clearPayday(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        c = conn.cursor()
+        c.execute('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+        data = c.fetchone()
+        if data[0] > 0:
+            c.execute('DELETE FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+            await message.channel.send("Payday feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "` again.")
+            conn.commit()
+        else:
+            await message.channel.send("Payday feature has not even been set up, so there's no reason to clear it.")
 
 async def payday(message):
     parsing = message.content.partition(" ")
