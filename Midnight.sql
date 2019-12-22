@@ -36,6 +36,13 @@ CREATE TABLE "tbl_payday_settings" (
   "cooldown" INTEGER NOT NULL
 );
 
+CREATE TABLE "tbl_paid_roles" (
+  "server" BIGINT NOT NULL,
+  "role" BIGINT NOT NULL,
+  "cost" INTEGER NOT NULL,
+  PRIMARY KEY("server", "role")
+);
+
 CREATE TABLE "tbl_transactions" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,

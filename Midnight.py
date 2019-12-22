@@ -43,6 +43,9 @@ ROLECALL_COMMAND = "rolecall"
 PAYDAY_SETUP_COMMAND = "setuppayday"
 PAYDAY_CLEAR_COMMAND = "clearpayday"
 PAYDAY_COMMAND = "payday"
+BUY_ROLE_SETUP_COMMAND = "setuprole"
+BUY_ROLE_REMOVE_COMMAND = "removerole"
+LIST_ROLES_COMMAND = "rolemenu"
 CLEAR_DMS_COMMAND = "cleardms"
 SETUP_ACTIVE_ROLE_COMMAND = "setupactiverole"
 CLEAR_ACTIVE_ROLE_COMMAND = "clearactiverole"
@@ -154,6 +157,9 @@ async def on_message(message):
             await setupPayday(message)
             await clearPayday(message)
             await payday(message)
+            await setupRole(message)
+            await removeRole(message)
+            await roleMenu(message)
             await setupActive(message)
             await clearActive(message)
 
@@ -202,6 +208,8 @@ async def help(message):
             paydayData = c.fetchone()
             c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
             currencyData = c.fetchone()
+            c.execute('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
+            paidRolesData = c.fetchone()
             if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
@@ -212,6 +220,12 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
             if paydayData is not None:
                 output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(datetime.timedelta(seconds=paydayData[1])) + ".\n"
+            if currencyData is not None:
+                if userPerms.manage_roles:
+                    output += "`" + COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND + "`: Will allow you to set up a role for purchase. Just provide the role, and the cost in " + currencyData[0] + ".\n"
+                    output += "`" + COMMAND_PREFIX + BUY_ROLE_REMOVE_COMMAND + "`: Will allow you to remove a role from the purchase list. Just name the role, and it'll be removed.\n"
+                if paidRolesData[0] > 0:
+                    output += "`" + COMMAND_PREFIX + LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
             output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
@@ -632,6 +646,70 @@ async def payday(message):
                     timeLeft = lastPayday + cooldown - currentTime
                     await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
             conn.commit()
+
+async def setupRole(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_roles:
+        c = conn.cursor()
+        c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+        currencyData = c.fetchone()
+        if currencyData is not None:
+            currencyName = currencyData[0]
+            parsing = parsing[2].rpartition(" ")
+            roleString = parsing[0]
+            costString = parsing[2]
+            if roleString == "" or costString == "":
+                await message.channel.send("I'm missing some information, I'm sure of it. You need to provide me with a role, and a cost.")
+            elif not costString.isdigit():
+                await message.channel.send("Please enter a number for the cost of the role.")
+            else:
+                role = parseRole(message.guild, roleString)
+                cost = int(costString)
+                if role is None:
+                    await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+                else:
+                    c.execute('SELECT COUNT(server) FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
+                    roleCountData = c.fetchone()
+                    if roleCountData[0] > 0:
+                        c.execute('UPDATE tbl_paid_roles SET cost = %s WHERE server = %s AND role = %s', (cost, message.guild.id, role.id))
+                        output = "Role '" + role.name + "' now set to cost " + costString + " " + currencyName + "."
+                    else:
+                        c.execute('INSERT INTO tbl_paid_roles (server, role, cost) VALUES (%s, %s, %s)', (message.guild.id, role.id, cost))
+                        output = "Role '" + role.name + "' now added to the menu, and costs " + costString + " " + currencyName + "."
+                    await message.channel.send(output)
+                    conn.commit()
+
+async def removeRole(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + BUY_ROLE_REMOVE_COMMAND and message.author.permissions_in(message.channel).manage_roles:
+        role = parseRole(message.guild, parsing[2])
+        if role is None:
+            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+        else:
+            c = conn.cursor()
+            c.execute('SELECT COUNT(server) FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
+            data = c.fetchone()
+            if data[0] > 0:
+                c.execute('DELETE FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
+                await message.channel.send("'" + role.name + "' has been removed from the role menu.")
+                conn.commit()
+            else:
+                await message.channel.send("Can't find that role in the menu.")
+
+async def roleMenu(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + LIST_ROLES_COMMAND:
+        c = conn.cursor()
+        c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+        currencyData = c.fetchone()
+        c.execute('SELECT role, cost FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
+        allData = c.fetchall()
+        if currencyData is not None and len(allData) > 0:
+            output = "**Available Roles**\n"
+            for roleData in allData:
+                role = message.guild.get_role(roleData[0])
+                output += role.name + ": " + str(roleData[1]) + " " + currencyData[0] + "\n"
+        await message.channel.send(output)
 
 def timeDeltaToString(timeDelta):
     totalSeconds = timeDelta.total_seconds()
