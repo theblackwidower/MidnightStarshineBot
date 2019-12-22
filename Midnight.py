@@ -34,7 +34,6 @@ IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
 IS_YAG_SNIPE_ENABLED = True
 IS_RYLAN_SNIPE_ENABLED = False
-IS_PAYDAY_ENABLED = False
 
 MIDNIGHTS_TRUE_MASTER = 204818040628576256
 
@@ -65,9 +64,6 @@ MOD_BAN_DELETE_COMMAND = "spamban"
 TRANSACTION_PAYDAY = "Payday"
 
 MAX_CHARS = 2000
-
-PAYDAY_AMOUNT = 250
-PAYDAY_COOLDOWN = datetime.timedelta(minutes=30)
 
 YAG_ID = 204255221017214977
 RYLAN_NAME = 'rylan'
@@ -199,6 +195,9 @@ async def help(message):
         output += "\n**COMMANDS:**\n"
         output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
         if isinstance(message.channel, discord.TextChannel):
+            c = conn.cursor()
+            c.execute('SELECT amount, currency_name, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+            paydayData = c.fetchone()
             if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
@@ -206,10 +205,8 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
                 output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
                 output += "`" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
-            if IS_PAYDAY_ENABLED:
-                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(PAYDAY_AMOUNT) + " bits into your account. Can only be run once every " + str(math.floor(PAYDAY_COOLDOWN.total_seconds() // 60)) + " minutes.\n"
-            elif message.guild.id == 587508374820618240:
-                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will output a message reminding people that the payday command was a really stupid idea.\n"
+            if paydayData is not None:
+                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + paydayData[1] + " into your account. Can only be run once every " + timeDeltaToString(datetime.timedelta(seconds=paydayData[2])) + ".\n"
             output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
@@ -581,34 +578,34 @@ async def setupPayday(message):
 
 async def payday(message):
     parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and IS_PAYDAY_ENABLED:
+    if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND:
         c = conn.cursor()
-        c.execute('SELECT funds, last_payday FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
-        data = c.fetchone()
-        if data is None:
-            currentFunds = PAYDAY_AMOUNT
-            c.execute('INSERT INTO tbl_accounts (server, member, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
-            c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, PAYDAY_AMOUNT, TRANSACTION_PAYDAY))
-            await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " bits in your account.")
-        else:
-            currentFunds = data[0]
-            lastPayday = datetime.datetime.fromtimestamp(data[1])
-            currentTime = datetime.datetime.now()
-            if lastPayday + PAYDAY_COOLDOWN < currentTime:
-                currentFunds += PAYDAY_AMOUNT
-                c.execute('UPDATE tbl_accounts SET funds = %s, last_payday = %s WHERE server = %s AND member = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
-                c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, PAYDAY_AMOUNT, TRANSACTION_PAYDAY))
-                await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " bits in your account.")
+        c.execute('SELECT amount, currency_name, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+        serverData = c.fetchone()
+        if serverData is not None:
+            paydayAmount = serverData[0]
+            currencyName = serverData[1]
+            cooldown = datetime.timedelta(seconds=serverData[2])
+            c.execute('SELECT funds, last_payday FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+            memberData = c.fetchone()
+            if memberData is None:
+                currentFunds = paydayAmount
+                c.execute('INSERT INTO tbl_accounts (server, member, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, datetime.datetime.now().timestamp()))
+                c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, paydayAmount, TRANSACTION_PAYDAY))
+                await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " " + currencyName + " in your account.")
             else:
-                timeLeft = lastPayday + PAYDAY_COOLDOWN - currentTime
-                await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
-        conn.commit()
-
-    elif message.guild.id == 587508374820618240 and parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND and not IS_PAYDAY_ENABLED:
-        master = client.get_user(MIDNIGHTS_TRUE_MASTER)
-        await master.create_dm()
-        await master.dm_channel.send(str(message.author) + " attempted to run the payday command.")
-        await message.channel.send("The payday command has been disabled, because it was a terrible idea in the first place. Have a nice day.")
+                currentFunds = memberData[0]
+                lastPayday = datetime.datetime.fromtimestamp(memberData[1])
+                currentTime = datetime.datetime.now()
+                if lastPayday + cooldown < currentTime:
+                    currentFunds += paydayAmount
+                    c.execute('UPDATE tbl_accounts SET funds = %s, last_payday = %s WHERE server = %s AND member = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
+                    c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (datetime.datetime.now().timestamp(), message.guild.id, message.author.id, paydayAmount, TRANSACTION_PAYDAY))
+                    await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " " + currencyName + " in your account.")
+                else:
+                    timeLeft = lastPayday + cooldown - currentTime
+                    await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
+            conn.commit()
 
 def timeDeltaToString(timeDelta):
     totalSeconds = timeDelta.total_seconds()
