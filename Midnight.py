@@ -198,8 +198,10 @@ async def help(message):
         output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
         if isinstance(message.channel, discord.TextChannel):
             c = conn.cursor()
-            c.execute('SELECT amount, currency_name, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+            c.execute('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
             paydayData = c.fetchone()
+            c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+            currencyData = c.fetchone()
             if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
@@ -209,7 +211,7 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
                 output += "`" + COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
             if paydayData is not None:
-                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + paydayData[1] + " into your account. Can only be run once every " + timeDeltaToString(datetime.timedelta(seconds=paydayData[2])) + ".\n"
+                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(datetime.timedelta(seconds=paydayData[1])) + ".\n"
             output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
@@ -569,11 +571,17 @@ async def setupPayday(message):
                 c.execute('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
                 data = c.fetchone()
                 if data[0] > 0:
-                    c.execute('UPDATE tbl_payday_settings SET amount = %s, currency_name = %s, cooldown = %s WHERE server = %s', (amount, currencyName, cooldown.total_seconds(), message.guild.id))
+                    c.execute('UPDATE tbl_payday_settings SET amount = %s, cooldown = %s WHERE server = %s', (amount, cooldown.total_seconds(), message.guild.id))
                     output = "Payday function successfully updated with the following parameters:\n"
                 else:
-                    c.execute('INSERT INTO tbl_payday_settings (server, amount, currency_name, cooldown) VALUES (%s, %s, %s, %s)', (message.guild.id, amount, currencyName, cooldown.total_seconds()))
+                    c.execute('INSERT INTO tbl_payday_settings (server, amount, cooldown) VALUES (%s, %s, %s)', (message.guild.id, amount, cooldown.total_seconds()))
                     output = "Payday function successfully set up with the following parameters:\n"
+                c.execute('SELECT COUNT(server) FROM tbl_currency WHERE server = %s', (message.guild.id,))
+                data = c.fetchone()
+                if data[0] > 0:
+                    c.execute('UPDATE tbl_currency SET currency_name = %s WHERE server = %s', (currencyName, message.guild.id))
+                else:
+                    c.execute('INSERT INTO tbl_currency (server, currency_name) VALUES (%s, %s)', (message.guild.id, currencyName))
                 output += "We'll be giving out __" + amountString + "__ '__" + currencyName + "__' to any user who runs the payday command.\n"
                 output += "And after running the command they must wait __" + timeDeltaToString(cooldown) + "__ before running it again.\n"
                 await message.channel.send(output)
@@ -596,12 +604,14 @@ async def payday(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND:
         c = conn.cursor()
-        c.execute('SELECT amount, currency_name, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
+        c.execute('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
         serverData = c.fetchone()
-        if serverData is not None:
+        c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+        currencyData = c.fetchone()
+        if serverData is not None and currencyData is not None:
             paydayAmount = serverData[0]
-            currencyName = serverData[1]
-            cooldown = datetime.timedelta(seconds=serverData[2])
+            currencyName = currencyData[0]
+            cooldown = datetime.timedelta(seconds=serverData[1])
             c.execute('SELECT funds, last_payday FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
             memberData = c.fetchone()
             if memberData is None:
