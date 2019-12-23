@@ -71,3 +71,10 @@ CREATE TABLE "tbl_active_role_settings" (
   "duration" INTEGER NOT NULL,
   "max" INTEGER NOT NULL
 );
+
+CREATE TABLE "tbl_activity_record" (
+  "server" BIGINT NOT NULL,
+  "member" BIGINT NOT NULL,
+  "last_active" INTEGER NOT NULL,
+  PRIMARY KEY("server", "member")
+);

@@ -500,23 +500,30 @@ async def checkActive(message):
         c = conn.cursor()
         c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
         data = c.fetchone()
-        conn.close()
         if data is not None:
             role = message.guild.get_role(data[0])
             gap = datetime.timedelta(seconds=data[1])
             duration = datetime.timedelta(seconds=data[2])
-            if message.author.roles.count(message.author.guild.get_role(data[0])) == 0:
-                if message.author.id in activeRecordLast[message.guild.id]:
-                    lastMessageTime = activeRecordLast[message.guild.id][message.author.id]
-                    if message.created_at <= lastMessageTime + gap:
-                        startMessageTime = activeRecordStart[message.guild.id][message.author.id]
-                        if message.created_at >= startMessageTime + duration:
+            if message.author.id in activeRecordLast[message.guild.id]:
+                lastMessageTime = activeRecordLast[message.guild.id][message.author.id]
+                if message.created_at <= lastMessageTime + gap:
+                    startMessageTime = activeRecordStart[message.guild.id][message.author.id]
+                    if message.created_at >= startMessageTime + duration:
+                        if message.author.roles.count(message.author.guild.get_role(data[0])) == 0:
                             await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
-                    else:
-                        activeRecordStart[message.guild.id][message.author.id] = message.created_at
+                        c.execute('SELECT COUNT(member) FROM tbl_activity_record WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+                        recordData = c.fetchone()
+                        if recordData[0] > 0:
+                            c.execute('UPDATE tbl_activity_record SET last_active = %s WHERE server = %s AND member = %s', (message.created_at.timestamp(), message.guild.id, message.author.id))
+                        else:
+                            c.execute('INSERT INTO tbl_activity_record (server, member, last_active) VALUES (%s, %s, %s)', (message.guild.id, message.author.id, message.created_at.timestamp()))
+                        conn.commit()
                 else:
                     activeRecordStart[message.guild.id][message.author.id] = message.created_at
-                activeRecordLast[message.guild.id][message.author.id] = message.created_at
+            else:
+                activeRecordStart[message.guild.id][message.author.id] = message.created_at
+            activeRecordLast[message.guild.id][message.author.id] = message.created_at
+        conn.close()
 
 async def purgeActiveServer(server):
     conn = psycopg2.connect(DATABASE_URL)
