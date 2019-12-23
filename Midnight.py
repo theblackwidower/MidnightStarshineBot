@@ -554,14 +554,11 @@ async def purgeActiveMember(member):
             if member.roles.count(role) > 0:
                 threshold = datetime.datetime.now() - max
 
-                history = await member.history(limit=1, oldest_first=False).flatten()
-                if len(history) > 0:
-                    if isinstance(history[0].channel, discord.TextChannel):
-                        lastMessageTime = history[0].created_at
-                    else:
-                        lastMessageTime = None
-                else:
-                    lastMessageTime = None
+                lastMessageTime = None
+                async for message in member.history(limit=10, oldest_first=False):
+                    if isinstance(message.channel, discord.TextChannel):
+                        lastMessageTime = message.created_at
+                        break
 
                 # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
                 if lastMessageTime is None:
@@ -572,10 +569,9 @@ async def purgeActiveMember(member):
                             async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
                                 if message.author == member:
                                     memberMessages.append(message)
+                                    break
                             for message in memberMessages:
-                                if lastMessageTime is None:
-                                    lastMessageTime = message.created_at
-                                elif lastMessageTime < message.created_at:
+                                if lastMessageTime is None or lastMessageTime < message.created_at:
                                     lastMessageTime = message.created_at
                     if lastMessageTime is None:
                         lastMessageTime = threshold
