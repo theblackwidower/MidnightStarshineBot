@@ -547,18 +547,23 @@ async def purgeActiveMember(member):
         c = conn.cursor()
         c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
         serverData = c.fetchone()
-        conn.close()
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
             max = datetime.timedelta(seconds=serverData[1])
             if member.roles.count(role) > 0:
                 threshold = datetime.datetime.now() - max
 
-                lastMessageTime = None
-                async for message in member.history(limit=10, oldest_first=False):
-                    if isinstance(message.channel, discord.TextChannel):
-                        lastMessageTime = message.created_at
-                        break
+                c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s, member = %s', (member.guild.id, member.id))
+                recordData = c.fetchone()
+                conn.close()
+                if recordData is not None:
+                    lastMessageTime = recordData[0]
+                else:
+                    lastMessageTime = None
+                    async for message in member.history(limit=10, oldest_first=False):
+                        if isinstance(message.channel, discord.TextChannel):
+                            lastMessageTime = message.created_at
+                            break
 
                 # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
                 if lastMessageTime is None:
@@ -580,6 +585,11 @@ async def purgeActiveMember(member):
                     await member.remove_roles(role, reason="Can't find any messages from this user in the past " + timeDeltaToString(max) + ".")
                 else:
                     activeCheckTime[member.guild.id][member.id] = datetime.datetime.now()
+            else:
+                conn.close()
+        else:
+            conn.close()
+
 
 async def setupPayday(message):
     parsing = message.content.partition(" ")
