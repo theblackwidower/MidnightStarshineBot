@@ -557,7 +557,7 @@ async def purgeActiveMember(member):
                 recordData = c.fetchone()
                 conn.close()
                 if recordData is not None:
-                    lastMessageTime = recordData[0]
+                    lastMessageTime = datetime.datetime.fromtimestamp(recordData[0])
                 else:
                     lastMessageTime = None
                     async for message in member.history(limit=10, oldest_first=False):
