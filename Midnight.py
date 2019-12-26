@@ -553,7 +553,7 @@ async def purgeActiveMember(member):
             if member.roles.count(role) > 0:
                 threshold = datetime.datetime.now() - max
 
-                c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s, member = %s', (member.guild.id, member.id))
+                c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
                 recordData = c.fetchone()
                 conn.close()
                 if recordData is not None:
