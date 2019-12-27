@@ -134,6 +134,7 @@ async def on_member_join(member):
     await yagSnipe(member)
     await rylanSnipe(member)
     await persistActive(member)
+    await persistBuyablesMember(member)
 
 @client.event
 async def on_guild_join(server):
@@ -150,6 +151,7 @@ async def on_guild_role_update(before, after):
 async def on_member_update(before, after):
     await rylanSnipe(after)
     await purgeActiveMember(after)
+    await persistBuyablesMember(after)
 
 @client.event
 async def on_message(message):
@@ -836,6 +838,41 @@ async def refundRole(message):
                     await message.channel.send("You have returned the '" + role.name + "' role and " + str(roleCost) + " " + currencyName + " has been returned to you. Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
                     conn.commit()
             conn.close()
+
+async def persistBuyablesMember(member):
+    if isinstance(member, discord.Member) and not member.bot:
+        conn = psycopg2.connect(DATABASE_URL)
+        c = conn.cursor()
+        c.execute('SELECT notes FROM tbl_transactions WHERE server = %s AND member = %s AND (notes LIKE %s OR notes LIKE %s)', (member.guild.id, member.id, TRANSACTION_BUY_ROLE + ": %(%)", TRANSACTION_REFUND_ROLE + ": %(%)"))
+        userData = c.fetchall()
+        userRoles = member.roles
+        c.execute('SELECT role FROM tbl_paid_roles WHERE server = %s', (member.guild.id,))
+        roleData = c.fetchall()
+        for row in roleData:
+            role = member.guild.get_role(row[0])
+            if role in userRoles:
+                userRoles.remove(role)
+        for row in userData:
+            note = row[0]
+            parsing = note.rpartition("(")
+            role = member.guild.get_role(int(parsing[2][:len(parsing[2]) - 1]))
+            if note.startswith(TRANSACTION_BUY_ROLE):
+                userRoles.append(role)
+            elif note.startswith(TRANSACTION_REFUND_ROLE):
+                userRoles.remove(role)
+        userRoles.sort(key=lambda role: role.position)
+        originalRoles = member.roles
+        if len(originalRoles) == len(userRoles):
+            isChange = False
+            for i in range(len(originalRoles)):
+                if originalRoles[i] != userRoles[i]:
+                    isChange = True
+                    break
+        else:
+            isChange = True
+        if isChange:
+            await member.edit(roles=userRoles, reason="Noticed some inconsistancies between the transaction records and the user's actual role assignment.")
+        conn.close()
 
 def timeDeltaToString(timeDelta):
     totalSeconds = timeDelta.total_seconds()
