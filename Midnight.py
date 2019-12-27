@@ -133,6 +133,7 @@ async def on_error(self, event_method, *args, **kwargs):
 async def on_member_join(member):
     await yagSnipe(member)
     await rylanSnipe(member)
+    await persistActive(member)
 
 @client.event
 async def on_guild_join(server):
@@ -587,6 +588,22 @@ async def purgeActiveMember(member):
         else:
             conn.close()
 
+async def persistActive(member):
+    if isinstance(member, discord.Member) and not member.bot:
+        conn = psycopg2.connect(DATABASE_URL)
+        c = conn.cursor()
+        c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
+        serverData = c.fetchone()
+        if serverData is not None:
+            role = member.guild.get_role(serverData[0])
+            max = datetime.timedelta(seconds=serverData[1])
+            if member.roles.count(role) <= 0:
+                threshold = datetime.datetime.now() - max
+                c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
+                recordData = c.fetchone()
+                if recordData is not None and datetime.datetime.fromtimestamp(recordData[0]) >= threshold:
+                    await member.remove_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
+        conn.close()
 
 async def setupPayday(message):
     parsing = message.content.partition(" ")
