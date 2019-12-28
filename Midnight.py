@@ -736,6 +736,7 @@ async def setupRole(message):
                         output = "Role '" + role.name + "' now added to the menu, and costs " + costString + " " + currencyName + "."
                     await message.channel.send(output)
                     conn.commit()
+                    await persistBuyablesRole(role)
         conn.close()
 
 async def removeRole(message):
@@ -879,6 +880,45 @@ async def persistBuyablesMember(member):
             isChange = True
         if isChange:
             await member.edit(roles=userRoles, reason="Noticed some inconsistancies between the transaction records and the user's actual role assignment.")
+        conn.close()
+
+async def persistBuyablesRole(role):
+    conn = psycopg2.connect(DATABASE_URL)
+    c = conn.cursor()
+    c.execute('SELECT COUNT(cost) FROM tbl_paid_roles WHERE server = %s AND role = %s', (role.guild.id, role.id))
+    roleData = c.fetchone()
+    if roleData[0] > 0:
+        c.execute('SELECT member, notes FROM tbl_transactions WHERE server = %s AND (notes LIKE %s OR notes LIKE %s) ORDER BY date', (role.guild.id, TRANSACTION_BUY_ROLE + ": %(" + str(role.id) + ")", TRANSACTION_REFUND_ROLE + ": %(" + str(role.id) + ")"))
+        transactionData = c.fetchall()
+        conn.close()
+        paidMembers = []
+        for row in transactionData:
+            member = role.guild.get_member(row[0])
+            note = row[1]
+            if member is not None:
+                if note.startswith(TRANSACTION_BUY_ROLE):
+                    paidMembers.append(member)
+                elif note.startswith(TRANSACTION_REFUND_ROLE):
+                    paidMembers.remove(member)
+        currentMembers = role.members
+        paidMembers.sort(key=lambda member: member.id)
+        currentMembers.sort(key=lambda member: member.id)
+        if len(currentMembers) == len(paidMembers):
+            isChange = False
+            for i in range(len(currentMembers)):
+                if currentMembers[i] != paidMembers[i]:
+                    isChange = True
+                    break
+        else:
+            isChange = True
+        if isChange:
+            for paid in paidMembers:
+                if paid not in currentMembers:
+                    await paid.add_roles(role, reason="Member paid for this role before, but doesn't currently have it.")
+            for current in currentMembers:
+                if current not in paidMembers:
+                    await current.remove_roles(role, reason="Member had this role, but didn't pay for it.")
+    else:
         conn.close()
 
 def timeDeltaToString(timeDelta):
