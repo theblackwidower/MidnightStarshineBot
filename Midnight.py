@@ -852,18 +852,21 @@ async def persistBuyablesMember(member):
         userRoles = member.roles
         c.execute('SELECT role FROM tbl_paid_roles WHERE server = %s', (member.guild.id,))
         roleData = c.fetchall()
+        paidRoles = []
         for row in roleData:
             role = member.guild.get_role(row[0])
+            paidRoles.append(role)
             if role in userRoles:
                 userRoles.remove(role)
         for row in userData:
             note = row[0]
             parsing = note.rpartition("(")
             role = member.guild.get_role(int(parsing[2][:len(parsing[2]) - 1]))
-            if note.startswith(TRANSACTION_BUY_ROLE):
-                userRoles.append(role)
-            elif note.startswith(TRANSACTION_REFUND_ROLE):
-                userRoles.remove(role)
+            if role in paidRoles:
+                if note.startswith(TRANSACTION_BUY_ROLE):
+                    userRoles.append(role)
+                elif note.startswith(TRANSACTION_REFUND_ROLE):
+                    userRoles.remove(role)
         userRoles.sort(key=lambda role: role.position)
         originalRoles = member.roles
         if len(originalRoles) == len(userRoles):
