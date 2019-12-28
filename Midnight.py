@@ -119,6 +119,16 @@ async def on_error(self, event_method, *args, **kwargs):
         master = client.get_user(MIDNIGHTS_TRUE_MASTER)
         await master.create_dm()
         await master.dm_channel.send("Encountered an exception. Check logs at: " + datetime.datetime.now().isoformat())
+
+        channel = None
+        if isinstance(event_method, discord.TextChannel):
+            channel = event_method
+        elif isinstance(event_method, discord.Message):
+            channel = event_method.channel
+
+        if channel is not None and channel.guild.me.permissions_in(channel).send_messages:
+            await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+
     except:
         master = client.get_user(MIDNIGHTS_TRUE_MASTER)
         await master.create_dm()
