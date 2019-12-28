@@ -16,15 +16,6 @@
   -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -- ------------------------------------------------------------------------
 
-CREATE TABLE "tbl_accounts" (
-  "server" BIGINT NOT NULL,
-  "member" BIGINT NOT NULL,
-  "funds" INTEGER NOT NULL,
-  -- Will last until January 19 2038 03:14:07 UTC
-  "last_payday" INTEGER,
-  PRIMARY KEY("server", "member")
-);
-
 CREATE TABLE "tbl_currency" (
   "server" BIGINT PRIMARY KEY,
   "currency_name" TEXT NOT NULL

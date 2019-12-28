@@ -675,25 +675,32 @@ async def payday(message):
             paydayAmount = serverData[0]
             currencyName = currencyData[0]
             cooldown = datetime.timedelta(seconds=serverData[1])
-            c.execute('SELECT funds, last_payday FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
-            memberData = c.fetchone()
-            if memberData is None:
-                currentFunds = paydayAmount
-                c.execute('INSERT INTO tbl_accounts (server, member, funds, last_payday) VALUES (%s, %s, %s, %s)', (message.guild.id, message.author.id, currentFunds, message.created_at.timestamp()))
-                c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (message.created_at.timestamp(), message.guild.id, message.author.id, paydayAmount, TRANSACTION_PAYDAY))
-                await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " " + currencyName + " in your account.")
+            c.execute('SELECT SUM(amount_in) FROM tbl_transactions WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+            fundsData = c.fetchone()
+            c.execute('SELECT MAX(date) FROM tbl_transactions WHERE server = %s AND member = %s AND notes = %s', (message.guild.id, message.author.id, TRANSACTION_PAYDAY))
+            cooldownData = c.fetchone()
+
+            if fundsData is None:
+                currentFunds = 0
             else:
-                currentFunds = memberData[0]
-                lastPayday = datetime.datetime.fromtimestamp(memberData[1])
-                currentTime = message.created_at
-                if lastPayday + cooldown < currentTime:
-                    currentFunds += paydayAmount
-                    c.execute('UPDATE tbl_accounts SET funds = %s, last_payday = %s WHERE server = %s AND member = %s', (currentFunds, currentTime.timestamp(), message.guild.id, message.author.id))
-                    c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (message.created_at.timestamp(), message.guild.id, message.author.id, paydayAmount, TRANSACTION_PAYDAY))
-                    await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " " + currencyName + " in your account.")
+                currentFunds = fundsData[0]
+
+            if cooldownData is None:
+                lastPayday = None
+            else:
+                lastPayday = datetime.datetime.fromtimestamp(cooldownData[0])
+
+            currentFunds += paydayAmount
+            currentTime = message.created_at
+            if lastPayday is None or lastPayday + cooldown < currentTime:
+                c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (message.created_at.timestamp(), message.guild.id, message.author.id, paydayAmount, TRANSACTION_PAYDAY))
+                if lastPayday is None:
+                    await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " " + currencyName + " in your account.")
                 else:
-                    timeLeft = lastPayday + cooldown - currentTime
-                    await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
+                    await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " " + currencyName + " in your account.")
+            else:
+                timeLeft = lastPayday + cooldown - currentTime
+                await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
             conn.commit()
         conn.close()
 
@@ -784,11 +791,11 @@ async def buyRole(message):
                 currencyName = currencyData[0]
                 c.execute('SELECT cost FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
                 costData = c.fetchone()
-                c.execute('SELECT funds FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+                c.execute('SELECT SUM(amount_in) FROM tbl_transactions WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
                 accountData = c.fetchone()
                 if costData is None:
                     await message.channel.send("Role not available for purchase.")
-                elif accountData is None:
+                elif accountData[0] is None:
                     await message.channel.send("Can't find any account data. Please run the payday command (`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`) at least once so we can give you some " + currencyName + ".")
                 else:
                     roleCost = costData[0]
@@ -797,7 +804,6 @@ async def buyRole(message):
                         await message.channel.send("The '" + role.name + "' role costs " + str(roleCost) + " " + currencyName + ", and you only have " + str(memberFunds) + " " + currencyName + " in your account.")
                     else:
                         memberFunds -= roleCost
-                        c.execute('UPDATE tbl_accounts SET funds = %s WHERE server = %s AND member = %s', (memberFunds, message.guild.id, message.author.id))
                         c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (message.created_at.timestamp(), message.guild.id, message.author.id, -roleCost, TRANSACTION_BUY_ROLE + ": " + role.name + "(" + str(role.id) + ")"))
                         await message.author.add_roles(role, reason="Purchased the role for " + str(roleCost) + " " + currencyName + ".")
                         await message.channel.send("Thank you for purchasing the '" + role.name + "' role for " + str(roleCost) + " " + currencyName + ". Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
@@ -825,14 +831,12 @@ async def refundRole(message):
                     await message.channel.send("Role cannot be refunded.")
                 else:
                     roleCost = costData[0]
-                    c.execute('SELECT funds FROM tbl_accounts WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+                    c.execute('SELECT SUM(amount_in) FROM tbl_transactions WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
                     accountData = c.fetchone()
-                    if accountData is None:
+                    if accountData[0] is None:
                         memberFunds = roleCost
-                        c.execute('INSERT INTO tbl_accounts (server, member, funds) VALUES (%s, %s, %s)', (message.guild.id, message.author.id, currentFunds))
                     else:
                         memberFunds = accountData[0] + roleCost
-                        c.execute('UPDATE tbl_accounts SET funds = %s WHERE server = %s AND member = %s', (memberFunds, message.guild.id, message.author.id))
                     c.execute('INSERT INTO tbl_transactions (date, server, member, amount_in, notes) VALUES (%s, %s, %s, %s, %s)', (message.created_at.timestamp(), message.guild.id, message.author.id, roleCost, TRANSACTION_REFUND_ROLE + ": " + role.name + "(" + str(role.id) + ")"))
                     await message.author.remove_roles(role, reason="Returned the role for " + str(roleCost) + " " + currencyName + ".")
                     await message.channel.send("You have returned the '" + role.name + "' role and " + str(roleCost) + " " + currencyName + " has been returned to you. Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
