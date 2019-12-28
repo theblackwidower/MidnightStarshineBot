@@ -680,12 +680,12 @@ async def payday(message):
             c.execute('SELECT MAX(date) FROM tbl_transactions WHERE server = %s AND member = %s AND notes = %s', (message.guild.id, message.author.id, TRANSACTION_PAYDAY))
             cooldownData = c.fetchone()
 
-            if fundsData is None:
+            if fundsData[0] is None:
                 currentFunds = 0
             else:
                 currentFunds = fundsData[0]
 
-            if cooldownData is None:
+            if cooldownData[0] is None:
                 lastPayday = None
             else:
                 lastPayday = datetime.datetime.fromtimestamp(cooldownData[0])
