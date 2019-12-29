@@ -1025,7 +1025,7 @@ async def getRule(message):
 def getRuleId(server_id, rule_num):
     conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
-    c.execute('SELECT id FROM tbl_rules WHERE server = %s', (server_id,))
+    c.execute('SELECT id FROM tbl_rules WHERE server = %s ORDER BY id', (server_id,))
     ruleData = c.fetchall()
     conn.close()
     if rule_num <= len(ruleData) and rule_num > 0:
