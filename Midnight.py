@@ -119,14 +119,23 @@ async def on_error(self, event_method, *args, **kwargs):
         await master.create_dm()
         await master.dm_channel.send("Encountered an exception. Check logs at: " + datetime.datetime.now().isoformat())
 
+        author = None
         channel = None
         if isinstance(event_method, discord.TextChannel):
             channel = event_method
         elif isinstance(event_method, discord.Message):
+            author = event_method.author
             channel = event_method.channel
 
-        if channel is not None and channel.guild.me.permissions_in(channel).send_messages:
-            await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+        if channel is not None:
+            if channel.guild.me.permissions_in(channel).send_messages:
+                await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+            elif author is not None:
+                try:
+                    await author.create_dm()
+                    await author.dm_channel.send("Pretty sure you broke something with that last message. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+                except discord.Forbidden:
+                    await master.dm_channel.send("Also, user " + str(author) + " (" + str(author.id) + ") blocked me. That isn't very nice.")
 
     except:
         master = client.get_user(MIDNIGHTS_TRUE_MASTER)
