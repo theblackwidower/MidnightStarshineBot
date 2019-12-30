@@ -34,7 +34,6 @@ IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
 IS_YAG_SNIPE_ENABLED = True
 IS_RYLAN_SNIPE_ENABLED = False
-IS_PURGE_ACTIVE_LEGACY_ENABLED = True
 
 MIDNIGHTS_TRUE_MASTER = 204818040628576256
 
@@ -566,39 +565,13 @@ async def purgeActiveMember(member):
             max = datetime.timedelta(seconds=serverData[1])
             if member.roles.count(role) > 0:
                 threshold = datetime.datetime.now() - max
-
                 c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
                 recordData = c.fetchone()
-                conn.close()
-                lastMessageTime = None
-                if recordData is not None:
-                    lastMessageTime = datetime.datetime.fromtimestamp(recordData[0])
-                elif IS_PURGE_ACTIVE_LEGACY_ENABLED:
-                    async for message in member.history(limit=10, oldest_first=False):
-                        if isinstance(message.channel, discord.TextChannel):
-                            lastMessageTime = message.created_at
-                            break
-
-                    # BACKUP CODE - Significantly less efficient. Should only be used if there's something seriously wrong with Discord's search function.
-                    if lastMessageTime is None:
-                        print("Running purgeActive backup code in " + member.guild.name + " on " + str(member) + " at " + datetime.datetime.now().isoformat())
-                        lastMessageTime = datetime.datetime.min
-                        for channel in member.guild.channels:
-                            if isinstance(channel, discord.channel.TextChannel) and member.guild.me.permissions_in(channel).read_message_history:
-                                async for message in channel.history(limit=100000000, after=threshold, oldest_first=False):
-                                    if message.author == member:
-                                        if lastMessageTime < message.created_at:
-                                            lastMessageTime = message.created_at
-                                        break
-
-                if lastMessageTime is None or lastMessageTime < threshold:
-                    await member.remove_roles(role, reason="Can't find any messages from this user in the past " + timeDeltaToString(max) + ".")
+                if recordData is not None and datetime.datetime.fromtimestamp(recordData[0]) < threshold:
+                    await member.remove_roles(role, reason="This user has failed to meet the 'active' criteria at any time in the past " + timeDeltaToString(max) + ".")
                 else:
                     activeCheckTime[member.guild.id][member.id] = datetime.datetime.now()
-            else:
-                conn.close()
-        else:
-            conn.close()
+        conn.close()
 
 async def persistActive(member):
     if isinstance(member, discord.Member) and not member.bot:
