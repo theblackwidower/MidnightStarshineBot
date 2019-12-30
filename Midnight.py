@@ -769,7 +769,7 @@ async def roleMenu(message):
         c = conn.cursor()
         c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
         currencyData = c.fetchone()
-        c.execute('SELECT role, cost FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
+        c.execute('SELECT role, cost FROM tbl_paid_roles WHERE server = %s ORDER BY cost', (message.guild.id,))
         allData = c.fetchall()
         conn.close()
         if currencyData is not None and len(allData) > 0:
