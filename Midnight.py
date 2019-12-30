@@ -285,9 +285,12 @@ async def help(message):
         await message.channel.send(output)
 
 def setupDataCache(server_id):
-    activeRecordLast[server_id] = dict()
-    activeRecordStart[server_id] = dict()
-    activeCheckTime[server_id] = dict()
+    if server_id not in activeRecordLast:
+        activeRecordLast[server_id] = dict()
+    if server_id not in activeRecordStart:
+        activeRecordStart[server_id] = dict()
+    if server_id not in activeCheckTime:
+        activeCheckTime[server_id] = dict()
 
 async def emoji_censor(message):
     if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
@@ -517,6 +520,8 @@ async def checkActive(message):
             role = message.guild.get_role(serverData[0])
             gap = datetime.timedelta(seconds=serverData[1])
             duration = datetime.timedelta(seconds=serverData[2])
+            if message.guild.id not in activeRecordLast:
+                setupDataCache(message.guild.id)
             if message.author.id in activeRecordLast[message.guild.id]:
                 lastMessageTime = activeRecordLast[message.guild.id][message.author.id]
                 if message.created_at <= lastMessageTime + gap:
@@ -550,6 +555,8 @@ async def purgeActiveServer(server):
             await purgeActiveMember(member)
 
 async def purgeActiveMember(member):
+    if member.guild.id not in activeCheckTime:
+        setupDataCache(member.guild.id)
     if member.id in activeCheckTime[member.guild.id]:
         lastCheck = activeCheckTime[member.guild.id][member.id]
     else:
