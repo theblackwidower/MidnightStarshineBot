@@ -225,6 +225,8 @@ async def help(message):
             currencyData = c.fetchone()
             c.execute('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
             paidRolesData = c.fetchone()
+            c.execute('SELECT COUNT(content) FROM tbl_rules WHERE server = %s', (message.guild.id,))
+            rulesData = c.fetchone()
             conn.close()
             if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
@@ -248,17 +250,20 @@ async def help(message):
                     output += "`" + COMMAND_PREFIX + LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
                     output += "`" + COMMAND_PREFIX + BUY_ROLE_COMMAND + "`: Will allow you to buy any specified role for " + currencyData[0] + ".\n"
                     output += "`" + COMMAND_PREFIX + REFUND_ROLE_COMMAND + "`: Will allow you to return any specified role, and get a full refund in " + currencyData[0] + ".\n"
-            output += "\n*Rule management:*\n"
-            output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
+            if rulesData[0] > 0 or isManagePerms:
+                output += "\n*Rule management:*\n"
+            if rulesData[0] > 0:
+                output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
                 output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
                 output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
-            output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
-            if isManagePerms:
-                output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
-                output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
-                output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
+            if rulesData[0] > 0:
+                output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
+                if isManagePerms:
+                    output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
+                    output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
+                    output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
             if userPerms.kick_members or userPerms.ban_members:
                 output += "\n*Moderation:*\n"
             if userPerms.kick_members:
@@ -1060,14 +1065,15 @@ async def getAllRules(message):
         ruleData = c.fetchall()
         conn.close()
         count = len(ruleData)
-        output = "**SERVER RULES** for " + message.guild.name + ":"
-        for i in range(count):
-            # TODO: add some kind of length control
-            output += "\nRule #" + str(i + 1) + ": " + ruleData[i][0]
-        await message.author.create_dm()
-        await message.author.dm_channel.send(output)
+        if count > 0:
+            output = "**SERVER RULES** for " + message.guild.name + ":"
+            for i in range(count):
+                # TODO: add some kind of length control
+                output += "\nRule #" + str(i + 1) + ": " + ruleData[i][0]
+            await message.author.create_dm()
+            await message.author.dm_channel.send(output)
 
-        await message.channel.send(message.author.mention + "! A copy of the complete server rules have been sent to your DMs.")
+            await message.channel.send(message.author.mention + "! A copy of the complete server rules have been sent to your DMs.")
 
 async def getRuleBackup(message):
     parsing = message.content.partition(" ")
@@ -1078,15 +1084,16 @@ async def getRuleBackup(message):
         ruleData = c.fetchall()
         conn.close()
         count = len(ruleData)
-        output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
-        for i in range(count):
-            # TODO: add some kind of length control
-            output += "\n" + COMMAND_PREFIX + RULE_SET_COMMAND + " " + ruleData[i][0]
-        output += "```"
-        await message.author.create_dm()
-        await message.author.dm_channel.send(output)
+        if count > 0:
+            output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
+            for i in range(count):
+                # TODO: add some kind of length control
+                output += "\n" + COMMAND_PREFIX + RULE_SET_COMMAND + " " + ruleData[i][0]
+            output += "```"
+            await message.author.create_dm()
+            await message.author.dm_channel.send(output)
 
-        await message.channel.send(message.author.mention + "! A backup of the complete server rules has been sent to your DMs.")
+            await message.channel.send(message.author.mention + "! A backup of the complete server rules has been sent to your DMs.")
 
 async def setRuleChannel(message):
     parsing = message.content.partition(" ")
