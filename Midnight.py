@@ -830,12 +830,12 @@ async def refundRole(message):
             currencyData = c.fetchone()
             if currencyData is not None:
                 currencyName = currencyData[0]
-                c.execute('SELECT cost FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, role.id))
+                c.execute('SELECT amount_in FROM tbl_transactions WHERE server = %s AND member = %s AND notes LIKE %s ORDER BY date DESC', (message.guild.id, message.author.id, TRANSACTION_BUY_ROLE + ": %(" + str(role.id) + ")"))
                 costData = c.fetchone()
                 if costData is None:
                     await message.channel.send("Role cannot be refunded.")
                 else:
-                    roleCost = costData[0]
+                    roleCost = -costData[0]
                     c.execute('SELECT SUM(amount_in) FROM tbl_transactions WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
                     accountData = c.fetchone()
                     if accountData[0] is None:
