@@ -67,6 +67,9 @@ MOD_KICK_COMMAND = "kick"
 MOD_BAN_SIMPLE_COMMAND = "ban"
 MOD_BAN_DELETE_COMMAND = "spamban"
 
+REMOTE_ADMIN_SERVER_LIST_COMMAND = "listservers"
+REMOTE_ADMIN_SERVER_REMOVE_COMMAND = "pullserver"
+
 TRANSACTION_PAYDAY = "Payday"
 TRANSACTION_BUY_ROLE = "Buying Role"
 TRANSACTION_REFUND_ROLE = "Refunding Role"
@@ -159,6 +162,7 @@ async def on_guild_join(server):
     setupDataCache(server.id)
     await yagSnipe(server.get_member(YAG_ID))
     await rylanSnipeServer(server)
+    await reportServerJoin(server)
 
 @client.event
 async def on_guild_role_update(before, after):
@@ -206,6 +210,8 @@ async def on_message(message):
             await banDelete(message)
         elif isinstance(message.channel, discord.DMChannel):
             await clearDms(message)
+            await listServers(message)
+            await leaveServer(message)
     await checkActive(message)
 
 @client.event
@@ -285,6 +291,9 @@ async def help(message):
                     output += "`" + COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
         elif isinstance(message.channel, discord.DMChannel):
             output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
+            if message.author.id == MIDNIGHTS_TRUE_MASTER:
+                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_LIST_COMMAND + "`: Will list all servers I'm currently running on.\n"
+                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_REMOVE_COMMAND + "`: Will remove me from whatever server is specified by ID or full name.\n"
 
         if len(output) > MAX_CHARS:
             outputLines = output.split("\n")
@@ -305,6 +314,33 @@ def setupDataCache(server_id):
         activeRecordStart[server_id] = dict()
     if server_id not in activeCheckTime:
         activeCheckTime[server_id] = dict()
+
+async def listServers(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + REMOTE_ADMIN_SERVER_LIST_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
+        output = "Currently attached to the following servers:"
+        for server in client.guilds:
+            output += "\n" + server.name + " (id: " + str(server.id) + ")"
+        await message.channel.send(output)
+
+async def leaveServer(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + REMOTE_ADMIN_SERVER_REMOVE_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
+        if parsing[2].isdigit():
+            server = discord.utils.get(client.guilds, id=int(parsing[2]))
+        else:
+            server = discord.utils.get(client.guilds, name=parsing[2])
+
+        if server is None:
+            await message.channel.send("Can't find that server. Don't think I'm actually on it, if it exists at all.")
+        else:
+            await server.leave()
+            await message.channel.send("Left server " + str(server.id) + ": " + server.name)
+
+async def reportServerJoin(server):
+    master = client.get_user(MIDNIGHTS_TRUE_MASTER)
+    await master.create_dm()
+    await master.dm_channel.send("Joined a new server: " + server.name + " (id: " + str(server.id) + ")")
 
 async def emoji_censor(message):
     if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
