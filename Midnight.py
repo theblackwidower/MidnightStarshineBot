@@ -180,8 +180,8 @@ async def on_message(message):
     await emoji_censor(message)
     if message.content.startswith(COMMAND_PREFIX):
         await help(message)
+        await echo(message)
         if isinstance(message.channel, discord.TextChannel):
-            await echo(message)
             await rolecall(message)
             await setupPayday(message)
             await clearPayday(message)
@@ -375,8 +375,20 @@ async def echo(message):
     if IS_ECHO_ENABLED:
         parsing = message.content.partition(" ")
         if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
-            await message.channel.send(parsing[2])
-            await message.delete()
+            if isinstance(message.channel, discord.DMChannel):
+                parsing = parsing[2].partition(" ")
+                if parsing[0].isdigit():
+                    channel = await client.fetch_channel(int(parsing[0]))
+                    if channel is None:
+                        await message.channel.send("Can't find channel.")
+                    else:
+                        await channel.send(parsing[2])
+                        await message.channel.send("Message posted.")
+                else:
+                    await message.channel.send("Invalid channel ID.")
+            else:
+                await message.channel.send(parsing[2])
+                await message.delete()
 
 def parseRole(server, string):
     role = None
