@@ -165,6 +165,10 @@ async def on_guild_join(server):
     await reportServerJoin(server)
 
 @client.event
+async def on_guild_remove(server):
+    await reportServerLeave(server)
+
+@client.event
 async def on_guild_role_update(before, after):
     await yagSnipe(after.guild.get_member(YAG_ID))
     await rylanSnipeServer(after.guild)
@@ -335,12 +339,16 @@ async def leaveServer(message):
             await message.channel.send("Can't find that server. Don't think I'm actually on it, if it exists at all.")
         else:
             await server.leave()
-            await message.channel.send("Left server " + str(server.id) + ": " + server.name)
 
 async def reportServerJoin(server):
     master = client.get_user(MIDNIGHTS_TRUE_MASTER)
     await master.create_dm()
     await master.dm_channel.send("Joined a new server: " + server.name + " (id: " + str(server.id) + ")")
+
+async def reportServerLeave(server):
+    master = client.get_user(MIDNIGHTS_TRUE_MASTER)
+    await master.create_dm()
+    await master.dm_channel.send("Left server: " + server.name + " (id: " + str(server.id) + ")")
 
 async def emoji_censor(message):
     if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
