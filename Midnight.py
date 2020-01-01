@@ -367,15 +367,14 @@ async def listServerChannels(message):
         if server is None:
             await message.channel.send("Can't find that server. Don't think I'm actually on it, if it exists at all.")
         else:
-            channelList = server.channels
-            channelList.sort(key=lambda channel: channel.position)
+            categoryList = server.by_category()
             output = "Channel list for " + server.name + " (id: " + str(server.id) + "):"
-            for channel in channelList:
-                output += "\n    "
-                if isinstance(channel, discord.CategoryChannel):
-                    output += "+"
-                else:
-                    if channel.category is not None:
+            for category, channelList in categoryList:
+                if category is not None:
+                    output += "\n    +" + category.name + " (id: " + str(category.id) + ")"
+                for channel in channelList:
+                    output += "\n    "
+                    if category is not None:
                         output += "    "
                     if isinstance(channel, discord.TextChannel):
                         output += "#"
@@ -383,7 +382,7 @@ async def listServerChannels(message):
                         output += "🔊"
                     else:
                         output += "?"
-                output += channel.name + " (id: " + str(channel.id) + ")"
+                    output += channel.name + " (id: " + str(channel.id) + ")"
             await message.channel.send(output)
 
 async def getPerms(message):
