@@ -385,6 +385,17 @@ async def listServerChannels(message):
                     else:
                         output += "?"
                     output += channel.name + " (id: " + str(channel.id) + ")"
+
+            if len(output) > MAX_CHARS:
+                outputLines = output.split("\n")
+                output = ""
+                for line in outputLines:
+                    if len(output) + len(line) <= MAX_CHARS - 2:
+                        output += line + "\n"
+                    else:
+                        await message.channel.send(output)
+                        output = line + "\n"
+
             await message.channel.send(output)
 
 async def getPerms(message):
