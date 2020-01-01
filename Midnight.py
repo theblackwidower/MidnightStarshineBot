@@ -304,6 +304,8 @@ async def help(message):
             if message.author.id == MIDNIGHTS_TRUE_MASTER:
                 output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_LIST_COMMAND + "`: Will list all servers I'm currently running on.\n"
                 output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_REMOVE_COMMAND + "`: Will remove me from whatever server is specified by ID or full name.\n"
+                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_CHANNEL_LIST_COMMAND + "`: Will list all channels I can see in the specified server.\n"
+                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_GET_PERMS_COMMAND + "`: Will list all my permissions in the channel or server specified.\n"
 
         if len(output) > MAX_CHARS:
             outputLines = output.split("\n")
