@@ -1342,17 +1342,11 @@ async def mute(message):
             await message.channel.send("Cannot mute any user with full admin permissions.")
         else:
             reason = "Muting " + str(member) + " on " + str(message.author) + "'s order."
-            categories = []
-            properChannels = []
-            for channel in message.guild.channels:
-                if isinstance(channel, discord.CategoryChannel):
-                    categories.append(channel)
-                else:
-                    properChannels.append(channel)
-            for channel in categories:
-                await channelMute(channel, member, reason)
-            for channel in properChannels:
-                await channelMute(channel, member, reason)
+            for category, channelList in message.guild.by_category():
+                if category is not None:
+                    await channelMute(category, member, reason)
+                for channel in channelList:
+                    await channelMute(channel, member, reason)
             await message.channel.send("Member " + member.mention + " muted.")
 
 async def channelMute(channel, member, reason):
@@ -1368,17 +1362,11 @@ async def unmute(message):
             await message.channel.send("Member not found.")
         else:
             reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
-            categories = []
-            properChannels = []
-            for channel in message.guild.channels:
-                if isinstance(channel, discord.CategoryChannel):
-                    categories.append(channel)
-                else:
-                    properChannels.append(channel)
-            for channel in categories:
-                await channelUnmute(channel, member, reason)
-            for channel in properChannels:
-                await channelUnmute(channel, member, reason)
+            for category, channelList in message.guild.by_category():
+                if category is not None:
+                    await channelUnmute(category, member, reason)
+                for channel in channelList:
+                    await channelUnmute(channel, member, reason)
             await message.channel.send("Member " + member.mention + " unmuted.")
 
 async def channelUnmute(channel, member, reason):
