@@ -290,8 +290,8 @@ async def help(message):
             if userPerms.kick_members or userPerms.ban_members:
                 output += "\n*Moderation:*\n"
             if userPerms.kick_members:
-                output += "`" + COMMAND_PREFIX + MOD_MUTE_COMMAND + "`: Will mute the specified user in all channels.\n"
-                output += "`" + COMMAND_PREFIX + MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in all channels.\n"
+                output += "`" + COMMAND_PREFIX + MOD_MUTE_COMMAND + "`: Will mute the specified user in the specified channel, or all channels if none is specified.\n"
+                output += "`" + COMMAND_PREFIX + MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in the specified channel, or all channels if none is specified.\n"
                 output += "`" + COMMAND_PREFIX + MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
             if userPerms.ban_members:
                 output += "`" + COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
@@ -523,6 +523,14 @@ def parseMember(server, string):
         memberId = string[2:len(string) - 1]
         if memberId.isdigit():
             member = server.get_member(int(memberId))
+    return member
+
+def parseChannel(server, string):
+    member = None
+    if string.startswith("<#") and string.endswith(">"):
+        channelId = string[2:len(string) - 1]
+        if channelId.isdigit():
+            member = server.get_channel(int(channelId))
     return member
 
 async def rolecall(message):
@@ -1346,19 +1354,29 @@ async def updateRuleChannel(message):
 async def mute(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_MUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        member = parseMember(message.guild, parsing[2])
+        parsing = parsing[2].partition(" ")
+        member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
         elif member.guild_permissions.administrator:
             await message.channel.send("Cannot mute any user with full admin permissions.")
         else:
-            reason = "Muting " + str(member) + " on " + str(message.author) + "'s order."
-            for category, channelList in message.guild.by_category():
-                if category is not None:
-                    await channelMute(category, member, reason)
-                for channel in channelList:
+            if parsing[2] == "":
+                reason = "Muting " + str(member) + " on " + str(message.author) + "'s order."
+                for category, channelList in message.guild.by_category():
+                    if category is not None:
+                        await channelMute(category, member, reason)
+                    for channel in channelList:
+                        await channelMute(channel, member, reason)
+                await message.channel.send("Member " + member.mention + " muted.")
+            else:
+                channel = parseChannel(message.guild, parsing[2])
+                if channel is None:
+                    await message.channel.send("Could not find specified channel.")
+                else:
+                    reason = "Muting " + str(member) + " in " + str(channel) + " on " + str(message.author) + "'s order."
                     await channelMute(channel, member, reason)
-            await message.channel.send("Member " + member.mention + " muted.")
+                    await message.channel.send("Member " + member.mention + " muted in " + str(channel) + ".")
 
 async def channelMute(channel, member, reason):
     permissions = channel.permissions_for(member)
@@ -1368,17 +1386,27 @@ async def channelMute(channel, member, reason):
 async def unmute(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_UNMUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        member = parseMember(message.guild, parsing[2])
+        parsing = parsing[2].partition(" ")
+        member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
         else:
-            reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
-            for category, channelList in message.guild.by_category():
-                if category is not None:
-                    await channelUnmute(category, member, reason)
-                for channel in channelList:
+            if parsing[2] == "":
+                reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
+                for category, channelList in message.guild.by_category():
+                    if category is not None:
+                        await channelUnmute(category, member, reason)
+                    for channel in channelList:
+                        await channelUnmute(channel, member, reason)
+                await message.channel.send("Member " + member.mention + " unmuted.")
+            else:
+                channel = parseChannel(message.guild, parsing[2])
+                if channel is None:
+                    await message.channel.send("Could not find specified channel.")
+                else:
+                    reason = "Unmuting " + str(member) + " in " + str(channel) + " on " + str(message.author) + "'s order."
                     await channelUnmute(channel, member, reason)
-            await message.channel.send("Member " + member.mention + " unmuted.")
+                    await message.channel.send("Member " + member.mention + " unmuted in " + str(channel) + ".")
 
 async def channelUnmute(channel, member, reason):
     permissions = channel.overwrites_for(member)
