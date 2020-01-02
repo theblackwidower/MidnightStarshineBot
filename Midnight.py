@@ -72,6 +72,8 @@ REMOTE_ADMIN_SERVER_REMOVE_COMMAND = "pullserver"
 REMOTE_ADMIN_CHANNEL_LIST_COMMAND = "listchannels"
 REMOTE_ADMIN_GET_PERMS_COMMAND = "getperms"
 
+GET_LOG_FILE_COMMAND = "getlog"
+
 TRANSACTION_PAYDAY = "Payday"
 TRANSACTION_BUY_ROLE = "Buying Role"
 TRANSACTION_REFUND_ROLE = "Refunding Role"
@@ -220,6 +222,7 @@ async def on_message(message):
             await leaveServer(message)
             await listServerChannels(message)
             await getPerms(message)
+            await getLogFile(message)
     await checkActive(message)
 
 @client.event
@@ -456,6 +459,13 @@ async def getPerms(message):
                 if value:
                     output += "\n" + str(permission)
             await message.channel.send(output)
+
+async def getLogFile(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + GET_LOG_FILE_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
+        log = open(ERROR_LOG, "rb")
+        file = discord.File(log)
+        await message.channel.send(file=file)
 
 async def emoji_censor(message):
     if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
