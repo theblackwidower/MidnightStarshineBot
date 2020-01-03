@@ -28,7 +28,7 @@ import math
 import sys
 import traceback
 
-COMMAND_PREFIX = "ms!"
+COMMAND_PREFIX = "msd!"
 
 IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
@@ -90,7 +90,7 @@ activeCheckTime = dict()
 ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 
 load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN_DEV')
 ERROR_LOG = os.getenv('ERROR_LOG')
 DATABASE_URL = os.getenv('DATABASE_URL')
 
