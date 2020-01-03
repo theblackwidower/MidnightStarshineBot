@@ -38,6 +38,8 @@ IS_RYLAN_SNIPE_ENABLED = False
 MIDNIGHTS_TRUE_MASTER = 204818040628576256
 
 HELP_COMMAND = "help"
+SOURCE_CODE_COMMAND = "getsource"
+SANCTUARY_COMMAND = "tosanctuary"
 ECHO_COMMAND = "say"
 ROLECALL_COMMAND = "rolecall"
 PAYDAY_SETUP_COMMAND = "setuppayday"
@@ -186,6 +188,8 @@ async def on_message(message):
     await emoji_censor(message)
     if message.content.startswith(COMMAND_PREFIX):
         await help(message)
+        await sourceCode(message)
+        await sanctuaryInvite(message)
         await echo(message)
         if isinstance(message.channel, discord.TextChannel):
             await rolecall(message)
@@ -233,12 +237,11 @@ async def help(message):
         isManagePerms = userPerms.manage_guild
 
         output = "Hello, I am Midnight Starshine. Your friendly neighbourhood Discord bot. Here to help in any way I can.\n"
-        output += "Would you like to take a look at my full source code? Naughty...\n"
-        output += "It's available at <https://github.com/theblackwidower/MidnightStarshineBot>, and I'm licenced under the GNU AGPL version 3.\n"
-        output += "If you're not sure what that means, don't worry, I'm not sure I understand either.\n"
 
         output += "\n**COMMANDS:**\n"
         output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
+        output += "`" + COMMAND_PREFIX + SOURCE_CODE_COMMAND + "`: I'm licenced under the GNU AGPL version 3. This means you are fully entitled to look at my full source code. Enter this command and I'll send you a link to my GitHub repository.\n"
+        output += "`" + COMMAND_PREFIX + SANCTUARY_COMMAND + "`: Every girl needs a place to unwind. I have my very special sanctuary. If you'd like an invite to **\"Moonlight's Sanctuary\"**. Just use this command.\n"
         if isinstance(message.channel, discord.TextChannel):
             conn = psycopg2.connect(DATABASE_URL)
             c = conn.cursor()
@@ -318,6 +321,34 @@ async def help(message):
                     output = line + "\n"
 
         await message.channel.send(output)
+
+async def sourceCode(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + SOURCE_CODE_COMMAND:
+        if isinstance(message.channel, discord.TextChannel):
+            await message.channel.send("A link has been sent to your DMs.")
+            await message.author.create_dm()
+            DMChannel = message.author.dm_channel
+        else:
+            DMChannel = message.channel
+        output = "So, you would like to take a look at my full source code... Naughty...\n"
+        output += "Well, I'm licenced under the GNU AGPL version 3, so I guess I'm obliged.\n"
+        output += "It's available at: https://github.com/theblackwidower/MidnightStarshineBot"
+        await DMChannel.send(output)
+
+async def sanctuaryInvite(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + SANCTUARY_COMMAND:
+        if isinstance(message.channel, discord.TextChannel):
+            await message.channel.send("An invite has been sent to your DMs.")
+            await message.author.create_dm()
+            DMChannel = message.author.dm_channel
+        else:
+            DMChannel = message.channel
+        output = "You want to visit my personal sanctuary?\n"
+        output += "Well... come on in...\n"
+        output += "https://discord.gg/Qekr2CW"
+        await DMChannel.send(output)
 
 def setupDataCache(server_id):
     if server_id not in activeRecordLast:
