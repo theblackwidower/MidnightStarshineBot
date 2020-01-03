@@ -52,6 +52,7 @@ $ python Midnight.py
   * On-the-fly rule management and lookup through bot commands.
   * Currency system which allows members to buy roles selected by server admins using a special currency set up by the same admins.
   * Moderation features (mute, kick, and ban commands)
+  * Ghost Ping Detector, detects when an @everyone or @here ping is deleted and immediately reports it in the channel where the act occurred. Also, in the event the report is deleted, it immediately reposts it with further notes on the event.
 
 ## Upcoming Features
 

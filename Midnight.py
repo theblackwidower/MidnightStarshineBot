@@ -34,6 +34,7 @@ IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
 IS_YAG_SNIPE_ENABLED = True
 IS_RYLAN_SNIPE_ENABLED = False
+IS_GHOST_PING_DETECTOR_ENABLED = True
 
 MIDNIGHTS_TRUE_MASTER = 204818040628576256
 
@@ -86,8 +87,10 @@ RYLAN_NAME = 'rylan'
 activeRecordLast = dict()
 activeRecordStart = dict()
 activeCheckTime = dict()
+ghostReportRecord = dict()
 
 ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
+GHOST_PING_DETECTOR_THRESHOLD = datetime.timedelta(minutes=3)
 
 load_dotenv()
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
@@ -229,6 +232,11 @@ async def on_message(message):
 @client.event
 async def on_message_edit(old_message, message):
     await emoji_censor(message)
+
+@client.event
+async def on_message_delete(message):
+    await ghostPingDetector(message)
+    await reportSupressionDetector(message)
 
 async def help(message):
     parsing = message.content.partition(" ")
@@ -487,6 +495,27 @@ async def getPerms(message):
                 if value:
                     output += "\n" + str(permission)
             await message.channel.send(output)
+
+async def ghostPingDetector(message):
+    if IS_GHOST_PING_DETECTOR_ENABLED and message.mention_everyone and message.created_at + GHOST_PING_DETECTOR_THRESHOLD >= datetime.datetime.now():
+        output = await message.channel.send("The preceding *ghost ping* was brought to you by " + message.author.mention + " for reasons unknown.")
+        ghostReportRecord[output.id] = (message.author, 0)
+
+async def reportSupressionDetector(message):
+    if message.id in ghostReportRecord and message.created_at + GHOST_PING_DETECTOR_THRESHOLD >= datetime.datetime.now():
+        culprit, count = ghostReportRecord[message.id]
+        count += 1
+        outputContent = "The preceding "
+        for i in range(count):
+            outputContent += "supression of a report of a "
+        outputContent += "*ghost ping* was brought to you by " + culprit.mention + " for reasons well-known... "
+        if count < 5:
+            outputContent += "their own cowardace."
+        else:
+            outputContent += "their own ridiculously, pathetically persistant cowardace."
+        output = await message.channel.send(outputContent)
+        ghostReportRecord[output.id] = (culprit, count)
+        del ghostReportRecord[message.id]
 
 async def emoji_censor(message):
     if isinstance(message.channel, discord.TextChannel) and IS_EMOJI_CENSOR_ENABLED:
