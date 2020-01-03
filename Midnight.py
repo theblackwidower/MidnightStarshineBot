@@ -92,6 +92,8 @@ ghostReportRecord = dict()
 ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 GHOST_PING_DETECTOR_THRESHOLD = datetime.timedelta(minutes=3)
 
+BIG_ROLE_THRESHOLD = 0.75
+
 load_dotenv()
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 ERROR_LOG = os.getenv('ERROR_LOG')
@@ -497,18 +499,32 @@ async def getPerms(message):
             await message.channel.send(output)
 
 async def ghostPingDetector(message):
-    if IS_GHOST_PING_DETECTOR_ENABLED and message.mention_everyone and message.created_at + GHOST_PING_DETECTOR_THRESHOLD >= datetime.datetime.now():
-        output = await message.channel.send("The preceding *ghost ping* was brought to you by " + message.author.mention + " for reasons unknown.")
-        ghostReportRecord[output.id] = (message.author, 0)
+    if IS_GHOST_PING_DETECTOR_ENABLED and message.created_at + GHOST_PING_DETECTOR_THRESHOLD >= datetime.datetime.now():
+        roleMentions = message.role_mentions
+        bigRolesMentioned = []
+        if len(roleMentions) > 0:
+            memberCount = message.guild.member_count
+            threshold = math.floor(memberCount * BIG_ROLE_THRESHOLD)
+            for role in roleMentions:
+                if len(role.members) >= threshold:
+                    bigRolesMentioned.append(role)
+        if message.mention_everyone or len(bigRolesMentioned) > 0:
+            roleList = ""
+            if len(bigRolesMentioned) > 0:
+                roleList += " to"
+                for role in bigRolesMentioned:
+                    roleList += " '" + role.name + "',"
+            output = await message.channel.send("The preceding *ghost ping*" + roleList + " was brought to you by " + message.author.mention + " for reasons unknown.")
+            ghostReportRecord[output.id] = (message.author, roleList, 0)
 
 async def reportSupressionDetector(message):
     if message.id in ghostReportRecord and message.created_at + GHOST_PING_DETECTOR_THRESHOLD >= datetime.datetime.now():
-        culprit, count = ghostReportRecord[message.id]
+        culprit, roleList, count = ghostReportRecord[message.id]
         count += 1
         outputContent = "The preceding "
         for i in range(count):
             outputContent += "supression of a report of a "
-        outputContent += "*ghost ping* was brought to you by " + culprit.mention + " for reasons well-known... "
+        outputContent += "*ghost ping*" + roleList + " was brought to you by " + culprit.mention + " for reasons well-known... "
         if count < 5:
             outputContent += "their own cowardace."
         else:
