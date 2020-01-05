@@ -21,6 +21,8 @@ import discord
 import datetime
 import math
 
+client = discord.Client()
+
 def parseRole(server, string):
     role = None
     if string.startswith("<@&") and string.endswith(">"):

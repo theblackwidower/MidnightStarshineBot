@@ -56,8 +56,6 @@ GHOST_PING_DETECTOR_THRESHOLD = datetime.timedelta(minutes=3)
 
 BIG_ROLE_THRESHOLD = 0.75
 
-client = discord.Client()
-
 @client.event
 async def on_ready():
     print(f'{client.user} has connected to Discord!')
