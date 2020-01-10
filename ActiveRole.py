@@ -120,8 +120,6 @@ async def checkActive(message):
                 if message.created_at <= lastMessageTime + gap:
                     startMessageTime = activeRecordStart[message.guild.id][message.author.id]
                     if message.created_at >= startMessageTime + duration:
-                        if message.author.roles.count(message.author.guild.get_role(serverData[0])) == 0:
-                            await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
                         c.execute('SELECT COUNT(member) FROM tbl_activity_record WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
                         recordData = c.fetchone()
                         if recordData[0] > 0:
@@ -129,6 +127,8 @@ async def checkActive(message):
                         else:
                             c.execute('INSERT INTO tbl_activity_record (server, member, last_active) VALUES (%s, %s, %s)', (message.guild.id, message.author.id, message.created_at.timestamp()))
                         conn.commit()
+                        if message.author.roles.count(message.author.guild.get_role(serverData[0])) == 0:
+                            await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
                 else:
                     activeRecordStart[message.guild.id][message.author.id] = message.created_at
             else:
