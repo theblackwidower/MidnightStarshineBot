@@ -39,6 +39,8 @@ def parseMember(server, string):
     member = None
     if string.startswith("<@") and string.endswith(">"):
         memberId = string[2:len(string) - 1]
+        if memberId.startswith("!"):
+            memberId = memberId[1:]
         if memberId.isdigit():
             member = server.get_member(int(memberId))
     return member
