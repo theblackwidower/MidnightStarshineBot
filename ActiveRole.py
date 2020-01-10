@@ -187,5 +187,5 @@ async def persistActive(member):
                 c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
                 recordData = c.fetchone()
                 if recordData is not None and datetime.datetime.fromtimestamp(recordData[0]) >= threshold:
-                    await member.remove_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
+                    await member.add_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
         conn.close()
