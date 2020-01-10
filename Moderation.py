@@ -54,8 +54,8 @@ async def mute(message):
 
 async def channelMute(channel, member, reason):
     permissions = channel.permissions_for(member)
-    if permissions.send_messages or permissions.speak:
-        await channel.set_permissions(member, send_messages=False, speak=False, reason=reason)
+    if permissions.send_messages or permissions.add_reactions or permissions.speak:
+        await channel.set_permissions(member, send_messages=False, add_reactions=False, speak=False, reason=reason)
 
 async def unmute(message):
     parsing = message.content.partition(" ")
@@ -84,8 +84,8 @@ async def unmute(message):
 
 async def channelUnmute(channel, member, reason):
     permissions = channel.overwrites_for(member)
-    if permissions is not None and (permissions.send_messages == False or permissions.speak == False):
-        permissions.update(send_messages=None, speak=None)
+    if permissions is not None and (permissions.send_messages == False or permissions.add_reactions == False or permissions.speak == False):
+        permissions.update(send_messages=None, add_reactions=None, speak=None)
         if permissions.is_empty():
             await channel.set_permissions(member, overwrite=None, reason=reason)
         else:
