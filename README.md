@@ -6,7 +6,7 @@ This bot is planned to have many functions, all coded directly in the bot.
 
 ## Add to your server
 
-If you wish to add Midnight Starshine to your own Discord server. Please [click here](https://discordapp.com/api/oauth2/authorize?client_id=644793317363548170&permissions=271657990&scope=bot). This will add what I believe to be the minimum permissions necessary for the bot to run without issue. But because this bot is continually expanding, the required permissions will likely also expand. Please be aware of this. 
+If you wish to add Midnight Starshine to your own Discord server. Please [click here](https://discordapp.com/api/oauth2/authorize?client_id=644793317363548170&permissions=271658054&scope=bot). This will add what I believe to be the minimum permissions necessary for the bot to run without issue. But because this bot is continually expanding, the required permissions will likely also expand. Please be aware of this.
 
 ## Install
 
