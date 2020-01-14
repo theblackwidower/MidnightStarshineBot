@@ -156,6 +156,7 @@ async def on_message(message):
             await setupPayday(message)
             await clearPayday(message)
             await payday(message)
+            await balance(message)
             await setupRole(message)
             await removeRole(message)
             await roleMenu(message)
@@ -233,6 +234,7 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
             if paydayData is not None:
                 output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(datetime.timedelta(seconds=paydayData[1])) + ".\n"
+                output += "`" + COMMAND_PREFIX + BALANCE_COMMAND + "`: Will display your account balance.\n"
             if currencyData is not None:
                 if userPerms.manage_roles:
                     output += "`" + COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND + "`: Will allow you to set up a role for purchase. Just provide the role, and the cost in " + currencyData[0] + ".\n"

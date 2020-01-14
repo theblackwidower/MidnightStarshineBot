@@ -27,6 +27,7 @@ from Utilities import *
 PAYDAY_SETUP_COMMAND = "setuppayday"
 PAYDAY_CLEAR_COMMAND = "clearpayday"
 PAYDAY_COMMAND = "payday"
+BALANCE_COMMAND = "balance"
 BUY_ROLE_SETUP_COMMAND = "setuprole"
 BUY_ROLE_REMOVE_COMMAND = "removerole"
 LIST_ROLES_COMMAND = "rolemenu"
@@ -132,6 +133,26 @@ async def payday(message):
                 timeLeft = lastPayday + cooldown - currentTime
                 await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
             conn.commit()
+        conn.close()
+
+async def balance(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + BALANCE_COMMAND:
+        conn = psycopg2.connect(DATABASE_URL)
+        c = conn.cursor()
+        c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
+        currencyData = c.fetchone()
+        if currencyData is not None:
+            currencyName = currencyData[0]
+            c.execute('SELECT SUM(amount_in) FROM tbl_transactions WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
+            fundsData = c.fetchone()
+
+            if fundsData[0] is None:
+                currentFunds = 0
+            else:
+                currentFunds = fundsData[0]
+
+            await message.channel.send(message.author.mention + "! You have " + str(currentFunds) + " " + currencyName + " in your account.")
         conn.close()
 
 async def setupRole(message):
