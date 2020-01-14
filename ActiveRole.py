@@ -29,17 +29,12 @@ CLEAR_ACTIVE_ROLE_COMMAND = "clearactiverole"
 
 activeRecordLast = dict()
 activeRecordStart = dict()
-activeCheckTime = dict()
-
-ACTIVE_CHECK_WAIT = datetime.timedelta(hours=1)
 
 def setupDataCache(server_id):
     if server_id not in activeRecordLast:
         activeRecordLast[server_id] = dict()
     if server_id not in activeRecordStart:
         activeRecordStart[server_id] = dict()
-    if server_id not in activeCheckTime:
-        activeCheckTime[server_id] = dict()
 
 async def setupActive(message):
     parsing = message.content.partition(" ")
@@ -148,14 +143,7 @@ async def purgeActiveServer(server):
             await purgeActiveMember(member)
 
 async def purgeActiveMember(member):
-    if member.guild.id not in activeCheckTime:
-        setupDataCache(member.guild.id)
-    if member.id in activeCheckTime[member.guild.id]:
-        lastCheck = activeCheckTime[member.guild.id][member.id]
-    else:
-        lastCheck = None
-
-    if isinstance(member, discord.Member) and not member.bot and (lastCheck is None or lastCheck + ACTIVE_CHECK_WAIT < datetime.datetime.now()):
+    if isinstance(member, discord.Member) and not member.bot:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
@@ -169,8 +157,6 @@ async def purgeActiveMember(member):
                 recordData = c.fetchone()
                 if recordData is not None and datetime.datetime.fromtimestamp(recordData[0]) < threshold:
                     await member.remove_roles(role, reason="This user has failed to meet the 'active' criteria at any time in the past " + timeDeltaToString(max) + ".")
-                else:
-                    activeCheckTime[member.guild.id][member.id] = datetime.datetime.now()
         conn.close()
 
 async def persistActive(member):
