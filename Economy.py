@@ -209,6 +209,16 @@ async def removeRole(message):
                 await message.channel.send("Can't find that role in the menu.")
             conn.close()
 
+async def roleDeleted(role):
+    conn = psycopg2.connect(DATABASE_URL)
+    c = conn.cursor()
+    c.execute('SELECT COUNT(server) FROM tbl_paid_roles WHERE server = %s AND role = %s', (role.guild.id, role.id))
+    roleData = c.fetchone()
+    if roleData[0] > 0:
+        c.execute('DELETE FROM tbl_paid_roles WHERE server = %s AND role = %s', (role.guild.id, role.id))
+        conn.commit()
+    conn.close()
+
 async def roleMenu(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + LIST_ROLES_COMMAND:
@@ -218,12 +228,16 @@ async def roleMenu(message):
         currencyData = c.fetchone()
         c.execute('SELECT role, cost FROM tbl_paid_roles WHERE server = %s ORDER BY cost', (message.guild.id,))
         allData = c.fetchall()
-        conn.close()
         if currencyData is not None and len(allData) > 0:
             output = "**Available Roles**\n"
             for roleData in allData:
                 role = message.guild.get_role(roleData[0])
-                output += role.name + ": " + str(roleData[1]) + " " + currencyData[0] + "\n"
+                if role is None:
+                    c.execute('DELETE FROM tbl_paid_roles WHERE server = %s AND role = %s', (message.guild.id, roleData[0]))
+                    conn.commit()
+                else:
+                    output += role.name + ": " + str(roleData[1]) + " " + currencyData[0] + "\n"
+        conn.close()
         await message.channel.send(output)
 
 async def buyRole(message):
@@ -307,9 +321,10 @@ async def persistBuyablesMember(member):
         paidRoles = []
         for row in roleData:
             role = member.guild.get_role(row[0])
-            paidRoles.append(role)
-            if role in userRoles:
-                userRoles.remove(role)
+            if role is not None:
+                paidRoles.append(role)
+                if role in userRoles:
+                    userRoles.remove(role)
         for row in userData:
             note = row[0]
             parsing = note.rpartition("(")

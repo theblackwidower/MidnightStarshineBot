@@ -196,6 +196,10 @@ async def on_message_delete(message):
     await ghostPingDetector(message)
     await reportSupressionDetector(message)
 
+@client.event
+async def on_guild_role_delete(role):
+    await roleDeleted(role)
+
 async def help(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
