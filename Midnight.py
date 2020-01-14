@@ -70,8 +70,6 @@ async def on_ready():
         setupDataCache(guild.id)
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
-    for guild in client.guilds:
-        await purgeActiveServer(guild)
 
 @client.event
 async def on_error(self, event_method, *args, **kwargs):
@@ -140,7 +138,7 @@ async def on_guild_role_update(before, after):
 @client.event
 async def on_member_update(before, after):
     await rylanSnipe(after)
-    await purgeActiveMember(after)
+    await persistActive(after)
     await persistBuyablesMember(after)
 
 @client.event

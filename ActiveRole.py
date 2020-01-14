@@ -131,34 +131,6 @@ async def checkActive(message):
             activeRecordLast[message.guild.id][message.author.id] = message.created_at
         conn.close()
 
-async def purgeActiveServer(server):
-    conn = psycopg2.connect(DATABASE_URL)
-    c = conn.cursor()
-    c.execute('SELECT role FROM tbl_active_role_settings WHERE server = %s', (server.id,))
-    roleData = c.fetchone()
-    conn.close()
-    if roleData is not None:
-        activeRole = server.get_role(roleData[0])
-        for member in activeRole.members:
-            await purgeActiveMember(member)
-
-async def purgeActiveMember(member):
-    if isinstance(member, discord.Member) and not member.bot:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
-        serverData = c.fetchone()
-        if serverData is not None:
-            role = member.guild.get_role(serverData[0])
-            max = datetime.timedelta(seconds=serverData[1])
-            if member.roles.count(role) > 0:
-                threshold = datetime.datetime.now() - max
-                c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
-                recordData = c.fetchone()
-                if recordData is not None and datetime.datetime.fromtimestamp(recordData[0]) < threshold:
-                    await member.remove_roles(role, reason="This user has failed to meet the 'active' criteria at any time in the past " + timeDeltaToString(max) + ".")
-        conn.close()
-
 async def persistActive(member):
     if isinstance(member, discord.Member) and not member.bot:
         conn = psycopg2.connect(DATABASE_URL)
@@ -168,10 +140,14 @@ async def persistActive(member):
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
             max = datetime.timedelta(seconds=serverData[1])
-            if member.roles.count(role) <= 0:
-                threshold = datetime.datetime.now() - max
-                c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
-                recordData = c.fetchone()
-                if recordData is not None and datetime.datetime.fromtimestamp(recordData[0]) >= threshold:
-                    await member.add_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
+            threshold = datetime.datetime.now() - max
+            c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
+            recordData = c.fetchone()
+            if recordData is not None:
+                if member.roles.count(role) > 0:
+                    if datetime.datetime.fromtimestamp(recordData[0]) < threshold:
+                        await member.remove_roles(role, reason="This user has failed to meet the 'active' criteria at any time in the past " + timeDeltaToString(max) + ".")
+                else:
+                    if datetime.datetime.fromtimestamp(recordData[0]) >= threshold:
+                        await member.add_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
         conn.close()
