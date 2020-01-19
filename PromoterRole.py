@@ -30,7 +30,13 @@ invitesCache = dict()
 
 async def setupInviteDataCache(server):
     if server.id not in invitesCache:
-        invitesCache[server.id] = await server.invites()
+        conn = psycopg2.connect(DATABASE_URL)
+        c = conn.cursor()
+        c.execute('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = %s', (server.id,))
+        serverData = c.fetchone()
+        conn.close()
+        if serverData[0] > 0:
+            invitesCache[server.id] = await server.invites()
 
 async def setupPromoterRole(message):
     parsing = message.content.partition(" ")
@@ -61,6 +67,7 @@ async def setupPromoterRole(message):
                     output = "Active user role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user whose invites bring in __" + str(recruitCount) + "__ members.\n"
+                await setupInviteDataCache(message.guild)
                 await message.channel.send(output)
                 conn.commit()
                 conn.close()
@@ -74,6 +81,7 @@ async def clearPromoterRole(message):
         serverData = c.fetchone()
         if serverData[0] > 0:
             c.execute('DELETE FROM tbl_promoter_role_settings WHERE server = %s', (message.guild.id,))
+            del invitesCache[message.guild.id]
             await message.channel.send("Promoter role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "` again.")
             conn.commit()
         else:
