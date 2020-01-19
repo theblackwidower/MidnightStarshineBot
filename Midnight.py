@@ -21,6 +21,7 @@ import discord
 import datetime
 import psycopg2
 import math
+import re
 
 import sys
 import traceback
@@ -55,6 +56,8 @@ ghostReportRecord = dict()
 GHOST_PING_DETECTOR_THRESHOLD = datetime.timedelta(minutes=3)
 
 BIG_ROLE_THRESHOLD = 0.75
+
+EMOJI_DETECTOR = re.compile("\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[🌀-🙏]|[🚀-🛿]|[🤀-🿿]")
 
 @client.event
 async def on_ready():
@@ -375,10 +378,12 @@ async def emoji_censor(message):
             content = content[0:customEmojiStart] + content[customEmojiEnd + 1:]
             emojiCount += 1
 
-        # TODO: Detect Unicode emojis
-
         content = content.strip()
         messageLength = len(content)
+
+        unicodeEmojis = EMOJI_DETECTOR.findall(content)
+        emojiCount += len(unicodeEmojis)
+        messageLength -= len(unicodeEmojis)
 
         if (emojiCount > 0 and (messageLength < 3 or messageLength <= emojiCount)):
             await message.delete()
