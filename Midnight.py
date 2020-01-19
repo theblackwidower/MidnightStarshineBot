@@ -57,7 +57,7 @@ GHOST_PING_DETECTOR_THRESHOLD = datetime.timedelta(minutes=3)
 
 BIG_ROLE_THRESHOLD = 0.75
 
-EMOJI_DETECTOR = re.compile("\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[🌀-🙏]|[🚀-🛿]|[🤀-🿿]")
+EMOJI_DETECTOR = re.compile("\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[🌀-🙏]|[🚀-🛿]|[🤀-🿿]|[🇦-🇿]{2}")
 
 @client.event
 async def on_ready():
