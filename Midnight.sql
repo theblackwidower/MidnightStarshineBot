@@ -1,6 +1,6 @@
   -- ------------------------------------------------------------------------
   -- MidnightStarshineBot - a multipurpose Discord bot
-  -- Copyright (C) 2019  T. Duke Perry
+  -- Copyright (C) 2020  T. Duke Perry
   --
   -- This program is free software: you can redistribute it and/or modify
   -- it under the terms of the GNU Affero General Public License as published
@@ -68,4 +68,18 @@ CREATE TABLE "tbl_activity_record" (
   "member" BIGINT NOT NULL,
   "last_active" INTEGER NOT NULL,
   PRIMARY KEY("server", "member")
+);
+
+CREATE TABLE "tbl_promoter_role_settings" (
+  "server" BIGINT PRIMARY KEY,
+  "role" BIGINT NOT NULL UNIQUE,
+  "recruit_count" INTEGER NOT NULL
+);
+
+CREATE TABLE "tbl_recruitment_record" (
+  "server" BIGINT NOT NULL,
+  "recruiter" BIGINT NOT NULL,
+  "recruited_member" BIGINT NOT NULL,
+  PRIMARY KEY("server", "recruited_member"),
+  CHECK("recruiter" <> "recruited_member")
 );

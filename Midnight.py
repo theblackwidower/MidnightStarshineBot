@@ -31,6 +31,7 @@ from Utilities import *
 
 from RemoteAdmin import *
 from ActiveRole import *
+from PromoterRole import *
 from Economy import *
 from Rules import *
 from Moderation import *
@@ -71,6 +72,7 @@ async def on_ready():
     for guild in client.guilds:
         print(f'{guild.name}(id: {guild.id})')
         setupDataCache(guild.id)
+        await setupInviteDataCache(guild)
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
 
@@ -121,6 +123,8 @@ async def on_member_join(member):
     await rylanSnipe(member)
     await persistActive(member)
     await persistBuyablesMember(member)
+    await persistPromoterRole(member)
+    await recordRecruit(member)
 
 @client.event
 async def on_guild_join(server):
@@ -165,6 +169,8 @@ async def on_message(message):
             await refundRole(message)
             await setupActive(message)
             await clearActive(message)
+            await setupPromoterRole(message)
+            await clearPromoterRole(message)
 
             await setRule(message)
             await getRule(message)
@@ -232,6 +238,9 @@ async def help(message):
                 output += "\n*Active Role Function:*\n"
                 output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
                 output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+                output += "\n*Promoter Role Function:*\n"
+                output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role. Only one promoter role can be set up at any one time.\n"
+                output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
             if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
                 output += "\n*Buyable roles:*\n"
             if isManagePerms:
