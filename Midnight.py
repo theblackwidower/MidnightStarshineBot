@@ -240,7 +240,7 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
                 output += "\n*Promoter Role Function:*\n"
                 output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role. Only one promoter role can be set up at any one time.\n"
-                output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+                output += "`" + COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
             if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
                 output += "\n*Buyable roles:*\n"
             if isManagePerms:
