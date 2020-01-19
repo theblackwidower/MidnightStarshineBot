@@ -147,6 +147,7 @@ async def on_member_update(before, after):
     await rylanSnipe(after)
     await persistActive(after)
     await persistBuyablesMember(after)
+    await persistPromoterRole(after)
 
 @client.event
 async def on_message(message):
