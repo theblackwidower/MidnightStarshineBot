@@ -83,3 +83,10 @@ CREATE TABLE "tbl_recruitment_record" (
   PRIMARY KEY("server", "recruited_member"),
   CHECK("recruiter" <> "recruited_member")
 );
+
+CREATE TABLE "tbl_muted_members" (
+  "server" BIGINT NOT NULL,
+  "member" BIGINT NOT NULL,
+  "channel" BIGINT DEFAULT 0,
+  PRIMARY KEY("server", "member", "channel")
+);
