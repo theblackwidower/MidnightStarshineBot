@@ -69,7 +69,16 @@ async def mute(message):
 async def channelMute(channel, member, reason):
     permissions = channel.permissions_for(member)
     if permissions.send_messages or permissions.add_reactions or permissions.speak:
-        await channel.set_permissions(member, send_messages=False, add_reactions=False, speak=False, reason=reason)
+        overwrite = channel.overwrites_for(member)
+        botPermissions = channel.permissions_for(channel.guild.me)
+        if botPermissions.send_messages:
+            overwrite.update(send_messages=False)
+        if botPermissions.add_reactions:
+            overwrite.update(add_reactions=False)
+        if botPermissions.speak:
+            overwrite.update(speak=False)
+
+        await channel.set_permissions(member, overwrite=overwrite, reason=reason)
 
 async def unmute(message):
     parsing = message.content.partition(" ")
