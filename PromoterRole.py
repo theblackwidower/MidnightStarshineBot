@@ -18,7 +18,7 @@
 
 import discord
 
-import psycopg2
+import asyncpg
 
 from Constants import *
 from Utilities import *
@@ -30,11 +30,9 @@ invitesCache = dict()
 
 async def setupInviteDataCache(server):
     if server.id not in invitesCache:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = %s', (server.id,))
-        serverData = c.fetchone()
-        conn.close()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', server.id)
+        await conn.close()
         if serverData[0] > 0:
             invitesCache[server.id] = await server.invites()
 
@@ -55,45 +53,37 @@ async def setupPromoterRole(message):
                 await message.channel.send("What you provided for number of recruits is not a number.")
             else:
                 recruitCount = int(recruitCountString)
-                conn = psycopg2.connect(DATABASE_URL)
-                c = conn.cursor()
-                c.execute('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = %s', (message.guild.id,))
-                serverData = c.fetchone()
+                conn = await asyncpg.connect(DATABASE_URL)
+                serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)
                 if serverData[0] > 0:
-                    c.execute('UPDATE tbl_promoter_role_settings SET role = %s, recruit_count = %s WHERE server = %s', (role.id, recruitCount, message.guild.id))
+                    await conn.execute('UPDATE tbl_promoter_role_settings SET role = $1, recruit_count = $2 WHERE server = $3', role.id, recruitCount, message.guild.id)
                     output = "Active user role successfully updated with the following parameters:\n"
                 else:
-                    c.execute('INSERT INTO tbl_promoter_role_settings (server, role, recruit_count) VALUES (%s, %s, %s)', (message.guild.id, role.id, recruitCount))
+                    await conn.execute('INSERT INTO tbl_promoter_role_settings (server, role, recruit_count) VALUES ($1, $2, $3)', message.guild.id, role.id, recruitCount)
                     output = "Active user role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user whose invites bring in __" + str(recruitCount) + "__ members.\n"
                 await setupInviteDataCache(message.guild)
                 await message.channel.send(output)
-                conn.commit()
-                conn.close()
+                await conn.close()
 
 async def clearPromoterRole(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = %s', (message.guild.id,))
-        serverData = c.fetchone()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)
         if serverData[0] > 0:
-            c.execute('DELETE FROM tbl_promoter_role_settings WHERE server = %s', (message.guild.id,))
+            await conn.execute('DELETE FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)
             del invitesCache[message.guild.id]
             await message.channel.send("Promoter role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "` again.")
-            conn.commit()
         else:
             await message.channel.send("Promoter role feature has not even been set up, so there's no reason to clear it.")
-        conn.close()
+        await conn.close()
 
 async def recordRecruit(recruit):
     if not recruit.bot:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT role, recruit_count FROM tbl_promoter_role_settings WHERE server = %s', (recruit.guild.id,))
-        serverData = c.fetchone()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT role, recruit_count FROM tbl_promoter_role_settings WHERE server = $1', recruit.guild.id)
         if serverData is not None:
             role = recruit.guild.get_role(serverData[0])
             recruitCount = serverData[1]
@@ -122,30 +112,24 @@ async def recordRecruit(recruit):
                 else:
                     recruiterId = foundInvite.inviter.id
                     if recruiterId != recruit.id:
-                        c.execute('SELECT COUNT(recruiter) FROM tbl_recruitment_record WHERE server = %s AND recruited_member = %s', (recruit.guild.id, recruit.id))
-                        repetitionData = c.fetchone()
+                        repetitionData = await conn.fetchrow('SELECT COUNT(recruiter) FROM tbl_recruitment_record WHERE server = $1 AND recruited_member = $2', recruit.guild.id, recruit.id)
                         if repetitionData[0] == 0:
-                            c.execute('INSERT INTO tbl_recruitment_record (server, recruiter, recruited_member) VALUES (%s, %s, %s)', (recruit.guild.id, recruiterId, recruit.id))
-                            conn.commit()
+                            await conn.execute('INSERT INTO tbl_recruitment_record (server, recruiter, recruited_member) VALUES ($1, $2, $3)', recruit.guild.id, recruiterId, recruit.id)
                             recruiter = recruit.guild.get_member(recruiterId)
                             if recruiter is not None and recruiter.roles.count(role) == 0:
-                                c.execute('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = %s AND recruiter = %s', (recruit.guild.id, recruiter.id))
-                                countData = c.fetchone()
+                                countData = await conn.fetchrow('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = $1 AND recruiter = $2', recruit.guild.id, recruiter.id)
                                 if countData[0] >= recruitCount:
                                     await recruiter.add_roles(role, reason="Recruited a total of " + str(countData[0]) + " members.")
-        conn.close()
+        await conn.close()
 
 async def persistPromoterRole(member):
     if isinstance(member, discord.Member) and not member.bot:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT role, recruit_count FROM tbl_promoter_role_settings WHERE server = %s', (member.guild.id,))
-        serverData = c.fetchone()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT role, recruit_count FROM tbl_promoter_role_settings WHERE server = $1', member.guild.id)
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
             minRecruitCount = serverData[1]
-            c.execute('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = %s AND recruiter = %s', (member.guild.id, member.id))
-            recordData = c.fetchone()
+            recordData = await conn.fetchrow('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = $1 AND recruiter = $2', member.guild.id, member.id)
             recruitCount = recordData[0]
             if member.roles.count(role) > 0:
                 if recruitCount < minRecruitCount:
@@ -153,4 +137,4 @@ async def persistPromoterRole(member):
             else:
                 if recruitCount >= minRecruitCount:
                     await member.add_roles(role, reason="This user had their promoter role returned, since records show they recruited " + str(recruitCount) + " members, and they only need " + str(minRecruitCount) + " to qualify.")
-        conn.close()
+        await conn.close()

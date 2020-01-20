@@ -16,7 +16,7 @@
     # along with this program.  If not, see <https://www.gnu.org/licenses/>.
     # ------------------------------------------------------------------------
 
-import psycopg2
+import asyncpg
 
 from Constants import *
 from Utilities import *
@@ -37,13 +37,11 @@ async def mute(message):
         elif member.guild_permissions.administrator:
             await message.channel.send("Cannot mute any user with full admin permissions.")
         else:
-            conn = psycopg2.connect(DATABASE_URL)
-            c = conn.cursor()
+            conn = await asyncpg.connect(DATABASE_URL)
             if parsing[2] == "":
-                c.execute('SELECT channel FROM tbl_muted_members WHERE server = %s AND member = %s AND channel = 0', (member.guild.id, member.id))
-                muteData = c.fetchone()
+                muteData = await conn.fetchrow('SELECT channel FROM tbl_muted_members WHERE server = $1 AND member = $2 AND channel = 0', member.guild.id, member.id)
                 if muteData is None:
-                    c.execute('INSERT INTO tbl_muted_members (server, member) VALUES (%s, %s)', (message.guild.id, member.id))
+                    await conn.execute('INSERT INTO tbl_muted_members (server, member) VALUES ($1, $2)', message.guild.id, member.id)
                 reason = "Muting " + str(member) + " on " + str(message.author) + "'s order."
                 for category, channelList in message.guild.by_category():
                     if category is not None:
@@ -56,15 +54,13 @@ async def mute(message):
                 if channel is None:
                     await message.channel.send("Could not find specified channel.")
                 else:
-                    c.execute('SELECT channel FROM tbl_muted_members WHERE server = %s AND member = %s AND channel = %s', (member.guild.id, member.id, channel.id))
-                    muteData = c.fetchone()
+                    muteData = await conn.fetchrow('SELECT channel FROM tbl_muted_members WHERE server = $1 AND member = $2 AND channel = $3', member.guild.id, member.id, channel.id)
                     if muteData is None:
-                        c.execute('INSERT INTO tbl_muted_members (server, member, channel) VALUES (%s, %s, %s)', (message.guild.id, member.id, channel.id))
+                        await conn.execute('INSERT INTO tbl_muted_members (server, member, channel) VALUES ($1, $2, $3)', message.guild.id, member.id, channel.id)
                     reason = "Muting " + str(member) + " in " + str(channel) + " on " + str(message.author) + "'s order."
                     await channelMute(channel, member, reason)
                     await message.channel.send("Member " + member.mention + " muted in " + str(channel) + ".")
-            conn.commit()
-            conn.close()
+            await conn.close()
 
 async def channelMute(channel, member, reason):
     permissions = channel.permissions_for(member)
@@ -88,10 +84,9 @@ async def unmute(message):
         if member is None:
             await message.channel.send("Member not found.")
         else:
-            conn = psycopg2.connect(DATABASE_URL)
-            c = conn.cursor()
+            conn = await asyncpg.connect(DATABASE_URL)
             if parsing[2] == "":
-                c.execute('DELETE FROM tbl_muted_members WHERE server = %s AND member = %s', (message.guild.id, member.id))
+                await conn.execute('DELETE FROM tbl_muted_members WHERE server = $1 AND member = $2', message.guild.id, member.id)
                 reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
                 for category, channelList in message.guild.by_category():
                     if category is not None:
@@ -104,12 +99,11 @@ async def unmute(message):
                 if channel is None:
                     await message.channel.send("Could not find specified channel.")
                 else:
-                    c.execute('DELETE FROM tbl_muted_members WHERE server = %s AND member = %s AND channel = %s', (message.guild.id, member.id, channel.id))
+                    await conn.execute('DELETE FROM tbl_muted_members WHERE server = $1 AND member = $2 AND channel = $3', message.guild.id, member.id, channel.id)
                     reason = "Unmuting " + str(member) + " in " + str(channel) + " on " + str(message.author) + "'s order."
                     await channelUnmute(channel, member, reason)
                     await message.channel.send("Member " + member.mention + " unmuted in " + str(channel) + ".")
-            conn.commit()
-            conn.close()
+            await conn.close()
 
 async def channelUnmute(channel, member, reason):
     permissions = channel.overwrites_for(member)
@@ -121,11 +115,9 @@ async def channelUnmute(channel, member, reason):
             await channel.set_permissions(member, overwrite=permissions, reason=reason)
 
 async def persistMute(member):
-    conn = psycopg2.connect(DATABASE_URL)
-    c = conn.cursor()
-    c.execute('SELECT channel FROM tbl_muted_members WHERE server = %s AND member = %s', (member.guild.id, member.id))
-    muteData = c.fetchall()
-    conn.close()
+    conn = await asyncpg.connect(DATABASE_URL)
+    muteData = await conn.fetch('SELECT channel FROM tbl_muted_members WHERE server = $1 AND member = $2', member.guild.id, member.id)
+    await conn.close()
     if len(muteData) > 0:
         reason = "Remuting " + str(member) + " based on persistance record."
         for row in muteData:

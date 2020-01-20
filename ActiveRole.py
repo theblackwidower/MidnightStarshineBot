@@ -19,7 +19,7 @@
 import discord
 
 import datetime
-import psycopg2
+import asyncpg
 
 from Constants import *
 from Utilities import *
@@ -65,45 +65,37 @@ async def setupActive(message):
             elif gap >= duration or duration >= max:
                 await message.channel.send("The *activity gap* has to be less than the *minimum activity duration*, which has to be less than the *maximum period of inactivity*.")
             else:
-                conn = psycopg2.connect(DATABASE_URL)
-                c = conn.cursor()
-                c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
-                serverData = c.fetchone()
+                conn = await asyncpg.connect(DATABASE_URL)
+                serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
                 if serverData[0] > 0:
-                    c.execute('UPDATE tbl_active_role_settings SET role = %s, gap = %s, duration = %s, max = %s WHERE server = %s', (role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id))
+                    await conn.execute('UPDATE tbl_active_role_settings SET role = $1, gap = $2, duration = $3, max = $4 WHERE server = $5', role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id)
                     output = "Active user role successfully updated with the following parameters:\n"
                 else:
-                    c.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES (%s, %s, %s, %s, %s)', (message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds()))
+                    await conn.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES ($1, $2, $3, $4, $5)', message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds())
                     output = "Active user role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user who sends at least one message every __" + timeDeltaToString(gap) + "__...\n"
                 output += "... for at least __" + timeDeltaToString(duration) + "__.\n"
                 output += "And we'll take the role away if they stop posting for __" + timeDeltaToString(max) + "__.\n"
                 await message.channel.send(output)
-                conn.commit()
-                conn.close()
+                await conn.close()
 
 async def clearActive(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
-        serverData = c.fetchone()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
         if serverData[0] > 0:
-            c.execute('DELETE FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
+            await conn.execute('DELETE FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
             await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
-            conn.commit()
         else:
             await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
-        conn.close()
+        await conn.close()
 
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = %s', (message.guild.id,))
-        serverData = c.fetchone()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
         if serverData is not None:
             role = message.guild.get_role(serverData[0])
             gap = datetime.timedelta(seconds=serverData[1])
@@ -115,13 +107,11 @@ async def checkActive(message):
                 if message.created_at <= lastMessageTime + gap:
                     startMessageTime = activeRecordStart[message.guild.id][message.author.id]
                     if message.created_at >= startMessageTime + duration:
-                        c.execute('SELECT COUNT(member) FROM tbl_activity_record WHERE server = %s AND member = %s', (message.guild.id, message.author.id))
-                        recordData = c.fetchone()
+                        recordData = await conn.fetchrow('SELECT COUNT(member) FROM tbl_activity_record WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
                         if recordData[0] > 0:
-                            c.execute('UPDATE tbl_activity_record SET last_active = %s WHERE server = %s AND member = %s', (message.created_at.timestamp(), message.guild.id, message.author.id))
+                            await conn.execute('UPDATE tbl_activity_record SET last_active = $1 WHERE server = $2 AND member = $3', message.created_at.timestamp(), message.guild.id, message.author.id)
                         else:
-                            c.execute('INSERT INTO tbl_activity_record (server, member, last_active) VALUES (%s, %s, %s)', (message.guild.id, message.author.id, message.created_at.timestamp()))
-                        conn.commit()
+                            await conn.execute('INSERT INTO tbl_activity_record (server, member, last_active) VALUES ($1, $2, $3)', message.guild.id, message.author.id, message.created_at.timestamp())
                         if message.author.roles.count(message.author.guild.get_role(serverData[0])) == 0:
                             await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
                 else:
@@ -129,20 +119,17 @@ async def checkActive(message):
             else:
                 activeRecordStart[message.guild.id][message.author.id] = message.created_at
             activeRecordLast[message.guild.id][message.author.id] = message.created_at
-        conn.close()
+        await conn.close()
 
 async def persistActive(member):
     if isinstance(member, discord.Member) and not member.bot:
-        conn = psycopg2.connect(DATABASE_URL)
-        c = conn.cursor()
-        c.execute('SELECT role, max FROM tbl_active_role_settings WHERE server = %s', (member.guild.id,))
-        serverData = c.fetchone()
+        conn = await asyncpg.connect(DATABASE_URL)
+        serverData = await conn.fetchrow('SELECT role, max FROM tbl_active_role_settings WHERE server = $1', member.guild.id)
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
             max = datetime.timedelta(seconds=serverData[1])
             threshold = datetime.datetime.now() - max
-            c.execute('SELECT last_active FROM tbl_activity_record WHERE server = %s AND member = %s', (member.guild.id, member.id))
-            recordData = c.fetchone()
+            recordData = await conn.fetchrow('SELECT last_active FROM tbl_activity_record WHERE server = $1 AND member = $2', member.guild.id, member.id)
             if recordData is not None:
                 lastActive = datetime.datetime.fromtimestamp(recordData[0])
             else:
@@ -153,4 +140,4 @@ async def persistActive(member):
             else:
                 if lastActive >= threshold:
                     await member.add_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
-        conn.close()
+        await conn.close()

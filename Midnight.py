@@ -19,7 +19,7 @@
 import discord
 
 import datetime
-import psycopg2
+import asyncpg
 import math
 import re
 
@@ -222,17 +222,12 @@ async def help(message):
         output += "`" + COMMAND_PREFIX + SOURCE_CODE_COMMAND + "`: I'm licenced under the GNU AGPL version 3. This means you are fully entitled to look at my full source code. Enter this command and I'll send you a link to my GitHub repository.\n"
         output += "`" + COMMAND_PREFIX + SANCTUARY_COMMAND + "`: Every girl needs a place to unwind. I have my very special sanctuary. If you'd like an invite to **\"Moonlight's Sanctuary\"**. Just use this command.\n"
         if isinstance(message.channel, discord.TextChannel):
-            conn = psycopg2.connect(DATABASE_URL)
-            c = conn.cursor()
-            c.execute('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = %s', (message.guild.id,))
-            paydayData = c.fetchone()
-            c.execute('SELECT currency_name FROM tbl_currency WHERE server = %s', (message.guild.id,))
-            currencyData = c.fetchone()
-            c.execute('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = %s', (message.guild.id,))
-            paidRolesData = c.fetchone()
-            c.execute('SELECT COUNT(content) FROM tbl_rules WHERE server = %s', (message.guild.id,))
-            rulesData = c.fetchone()
-            conn.close()
+            conn = await asyncpg.connect(DATABASE_URL)
+            paydayData = await conn.fetchrow('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = $1', message.guild.id)
+            currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
+            paidRolesData = await conn.fetchrow('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = $1', message.guild.id)
+            rulesData = await conn.fetchrow('SELECT COUNT(content) FROM tbl_rules WHERE server = $1', message.guild.id)
+            await conn.close()
             if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
             if isManagePerms:
