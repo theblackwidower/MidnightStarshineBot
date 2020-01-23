@@ -101,6 +101,6 @@ def timeDeltaToString(timeDelta):
     elif len(totalTimeParts) == 4:
         totalTimeString = totalTimeParts[0] + ", " + totalTimeParts[1] + ", " + totalTimeParts[2] + " and " + totalTimeParts[3]
     else:
-        raise Exception("Invalid number of totalTimeParts: " + len(totalTimeParts))
+        raise Exception("Invalid number of totalTimeParts: " + str(len(totalTimeParts)))
 
     return totalTimeString
