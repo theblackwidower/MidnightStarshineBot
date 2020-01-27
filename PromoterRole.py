@@ -27,6 +27,7 @@ SETUP_PROMOTER_ROLE_COMMAND = "setuppromoterrole"
 CLEAR_PROMOTER_ROLE_COMMAND = "clearpromoterrole"
 
 invitesCache = dict()
+invitesCacheTime = dict()
 
 async def setupInviteDataCache(server):
     if server.id not in invitesCache:
@@ -34,7 +35,23 @@ async def setupInviteDataCache(server):
         serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', server.id)
         await conn.close()
         if serverData[0] > 0:
-            invitesCache[server.id] = await server.invites()
+            invitesCache[server.id] = dict()
+            invitesCacheTime[server.id] = datetime.datetime.utcnow()
+            allInvites = await server.invites()
+            for invite in allInvites:
+                cacheInvite(invite, invite.created_at, server.id)
+
+def cacheInvite(invite, creationTime, serverId):
+    if invite.max_age > 0:
+        expiry = creationTime + datetime.timedelta(seconds=invite.max_age)
+    else:
+        expiry = None
+
+    if invite.max_uses > 0:
+        maxUses = invite.max_uses
+    else:
+        maxUses = None
+    invitesCache[serverId][invite.code] = (expiry, invite.uses, maxUses, invite.inviter.id)
 
 async def setupPromoterRole(message):
     parsing = message.content.partition(" ")
@@ -90,27 +107,38 @@ async def recordRecruit(recruit):
             if recruit.guild.id not in invitesCache:
                 await setupInviteDataCache(recruit.guild)
             else:
-                foundInvite = None
-                allInvites = await recruit.guild.invites()
-                for invite in invitesCache[recruit.guild.id]:
-                    updatedInvite = discord.utils.get(allInvites, id=invite.id)
-                    if updatedInvite is not None and invite.uses < updatedInvite.uses:
-                        foundInvite = updatedInvite
-                        invitesCache[recruit.guild.id].remove(invite)
-                        invitesCache[recruit.guild.id].append(updatedInvite)
-                        break
+                currentTime = datetime.datetime.utcnow()
+                async for item in recruit.guild.audit_logs(limit=100000, after=invitesCacheTime[recruit.guild.id], action=discord.AuditLogAction.invite_create):
+                    if item.created_at > invitesCacheTime[recruit.guild.id]:
+                        cacheInvite(item.after, item.created_at, recruit.guild.id)
+                async for item in recruit.guild.audit_logs(limit=100000, after=invitesCacheTime[recruit.guild.id], action=discord.AuditLogAction.invite_delete):
+                    if item.created_at > invitesCacheTime[recruit.guild.id]:
+                        del invitesCache[recruit.guild.id][item.before.code]
+                invitesCacheTime[recruit.guild.id] = currentTime
 
-                if foundInvite is None:
-                    for invite in allInvites:
-                        if invite not in invitesCache[recruit.guild.id]:
-                            foundInvite = invite
-                            invitesCache[recruit.guild.id].append(invite)
+                foundInviter = None
+                allInvites = await recruit.guild.invites()
+                inviteCodeList = list(invitesCache[recruit.guild.id])
+                for inviteCode in inviteCodeList:
+                    expiry, uses, maxUses, inviterId = invitesCache[recruit.guild.id][inviteCode]
+                    if expiry is not None and expiry < currentTime:
+                        del invitesCache[recruit.guild.id][inviteCode]
+                    else:
+                        updatedInvite = discord.utils.get(allInvites, code=inviteCode)
+                        if updatedInvite is None and maxUses is not None and maxUses == uses + 1:
+                            foundInviter = inviterId
+                            del invitesCache[recruit.guild.id][inviteCode]
+                            break
+                        elif updatedInvite is not None and uses < updatedInvite.uses:
+                            foundInviter = inviterId
+                            del invitesCache[recruit.guild.id][inviteCode]
+                            cacheInvite(updatedInvite, updatedInvite.created_at, recruit.guild.id)
                             break
 
-                if foundInvite is None:
+                if foundInviter is None:
                     raise Exception("Can't find invite of new user.")
                 else:
-                    recruiterId = foundInvite.inviter.id
+                    recruiterId = foundInviter
                     if recruiterId != recruit.id:
                         repetitionData = await conn.fetchrow('SELECT COUNT(recruiter) FROM tbl_recruitment_record WHERE server = $1 AND recruited_member = $2', recruit.guild.id, recruit.id)
                         if repetitionData[0] == 0:
