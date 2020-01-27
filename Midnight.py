@@ -368,21 +368,24 @@ async def emoji_censor(message):
         content = message.content
 
         emojiCount = 0
+        startIndex = 0
         while True:
             # <:AnnoyedSweetieBelle:650749086105993218>
-            customEmojiStart = content.find("<:")
+            customEmojiStart = content.find("<:", startIndex)
             if customEmojiStart == -1:
                 break
-            customEmojiMid = content.find(":", customEmojiStart + 1)
+            customEmojiMid = content.find(":", customEmojiStart + 2)
             if customEmojiMid == -1:
                 break
             customEmojiEnd = content.find(">", customEmojiMid + 1)
             if customEmojiEnd == -1:
                 break
 
-            # if content[customEmojiMid + 2:customEmojiEnd - 2].isdigit():
-            content = content[0:customEmojiStart] + content[customEmojiEnd + 1:]
-            emojiCount += 1
+            if content[customEmojiMid + 1:customEmojiEnd].isdigit():
+                content = content[0:customEmojiStart] + content[customEmojiEnd + 1:]
+                emojiCount += 1
+            else:
+                startIndex = customEmojiStart + 1
 
         content = content.strip()
         messageLength = len(content)
