@@ -132,7 +132,7 @@ async def recordRecruit(recruit):
                         elif updatedInvite is not None and uses < updatedInvite.uses:
                             foundInviter = inviterId
                             del invitesCache[recruit.guild.id][inviteCode]
-                            cacheInvite(updatedInvite, updatedInvite.created_at, recruit.guild.id)
+                            invitesCache[recruit.guild.id][inviteCode] = expiry, uses + 1, maxUses, inviterId
                             break
 
                 if foundInviter is None:
