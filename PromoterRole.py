@@ -74,10 +74,10 @@ async def setupPromoterRole(message):
                 serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)
                 if serverData[0] > 0:
                     await conn.execute('UPDATE tbl_promoter_role_settings SET role = $1, recruit_count = $2 WHERE server = $3', role.id, recruitCount, message.guild.id)
-                    output = "Active user role successfully updated with the following parameters:\n"
+                    output = "Promoter role successfully updated with the following parameters:\n"
                 else:
                     await conn.execute('INSERT INTO tbl_promoter_role_settings (server, role, recruit_count) VALUES ($1, $2, $3)', message.guild.id, role.id, recruitCount)
-                    output = "Active user role successfully set up with the following parameters:\n"
+                    output = "Promoter role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user whose invites bring in __" + str(recruitCount) + "__ members.\n"
                 await setupInviteDataCache(message.guild)
