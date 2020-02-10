@@ -71,9 +71,10 @@ CREATE TABLE "tbl_activity_record" (
 );
 
 CREATE TABLE "tbl_promoter_role_settings" (
-  "server" BIGINT PRIMARY KEY,
+  "server" BIGINT NOT NULL,
   "role" BIGINT NOT NULL UNIQUE,
-  "recruit_count" INTEGER NOT NULL
+  "recruit_count" INTEGER NOT NULL,
+  PRIMARY KEY("server", "recruit_count")
 );
 
 CREATE TABLE "tbl_recruitment_record" (
