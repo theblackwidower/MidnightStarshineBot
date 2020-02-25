@@ -178,3 +178,13 @@ async def persistPromoterRole(member):
                     if recruitCount >= minRecruitCount:
                         await member.add_roles(role, reason="This user had their promoter role returned, since records show they recruited " + str(recruitCount) + " members, and they only need " + str(minRecruitCount) + " to qualify.")
         await conn.close()
+
+async def deleteInvites(server, user):
+    conn = await asyncpg.connect(DATABASE_URL)
+    serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', server.id)
+    await conn.close()
+    if serverData[0] > 0:
+        allInvites = await server.invites()
+        for invite in allInvites:
+            if invite.inviter.id == user.id:
+                await invite.delete(reason="Member " + str(user) + " was banned. Their invites have been deleted to prevent further issues.")

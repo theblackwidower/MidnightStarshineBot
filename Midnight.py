@@ -209,6 +209,10 @@ async def on_message_delete(message):
 async def on_guild_role_delete(role):
     await roleDeleted(role)
 
+@client.event
+async def on_member_ban(server, user):
+    await deleteInvites(server, user)
+
 async def help(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
