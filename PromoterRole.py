@@ -149,7 +149,7 @@ async def recordRecruit(recruit):
                         if repetitionData[0] == 0:
                             await conn.execute('INSERT INTO tbl_recruitment_record (server, recruiter, recruited_member) VALUES ($1, $2, $3)', recruit.guild.id, recruiterId, recruit.id)
                             recruiter = recruit.guild.get_member(recruiterId)
-                            if recruiter is not None:
+                            if recruiter is not None and not recruiter.bot:
                                 for row in serverData:
                                     role = recruit.guild.get_role(row[0])
                                     recruitCount = row[1]
