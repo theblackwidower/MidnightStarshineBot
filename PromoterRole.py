@@ -31,9 +31,9 @@ invitesCacheTime = dict()
 
 async def setupInviteDataCache(server):
     if server.id not in invitesCache:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', server.id)
-        await conn.close()
+        await returnConnection(conn)
         if serverData[0] > 0:
             invitesCache[server.id] = dict()
             invitesCacheTime[server.id] = datetime.datetime.utcnow()
@@ -70,7 +70,7 @@ async def setupPromoterRole(message):
                 await message.channel.send("What you provided for number of recruits is not a number.")
             else:
                 recruitCount = int(recruitCountString)
-                conn = await asyncpg.connect(DATABASE_URL)
+                conn = await getConnection()
                 serverCountData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1 AND recruit_count = $2', message.guild.id, recruitCount)
                 serverRoleData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1 AND role = $2', message.guild.id, role.id)
                 if serverCountData[0] > 0 and serverRoleData[0] > 0:
@@ -89,12 +89,12 @@ async def setupPromoterRole(message):
                     output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                     output += "... to any user whose invites bring in __" + str(recruitCount) + "__ members.\n"
                 await message.channel.send(output)
-                await conn.close()
+                await returnConnection(conn)
 
 async def clearPromoterRole(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)
         if serverData[0] > 0:
             await conn.execute('DELETE FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)
@@ -102,11 +102,11 @@ async def clearPromoterRole(message):
             await message.channel.send("Promoter role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "` again.")
         else:
             await message.channel.send("Promoter role feature has not even been set up, so there's no reason to clear it.")
-        await conn.close()
+        await returnConnection(conn)
 
 async def recordRecruit(recruit):
     if not recruit.bot:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetch('SELECT role, recruit_count FROM tbl_promoter_role_settings WHERE server = $1', recruit.guild.id)
         if len(serverData) > 0:
             if recruit.guild.id not in invitesCache:
@@ -159,11 +159,11 @@ async def recordRecruit(recruit):
                                             await recruiter.add_roles(role, reason="Recruited a total of " + str(countData[0]) + " members.")
                                         else:
                                             break
-        await conn.close()
+        await returnConnection(conn)
 
 async def persistPromoterRole(member):
     if isinstance(member, discord.Member) and not member.bot:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetch('SELECT role, recruit_count FROM tbl_promoter_role_settings WHERE server = $1', member.guild.id)
         if len(serverData) > 0:
             recordData = await conn.fetchrow('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = $1 AND recruiter = $2', member.guild.id, member.id)
@@ -177,12 +177,12 @@ async def persistPromoterRole(member):
                 else:
                     if recruitCount >= minRecruitCount:
                         await member.add_roles(role, reason="This user had their promoter role returned, since records show they recruited " + str(recruitCount) + " members, and they only need " + str(minRecruitCount) + " to qualify.")
-        await conn.close()
+        await returnConnection(conn)
 
 async def deleteInvites(server, user):
-    conn = await asyncpg.connect(DATABASE_URL)
+    conn = await getConnection()
     serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', server.id)
-    await conn.close()
+    await returnConnection(conn)
     if serverData[0] > 0:
         allInvites = await server.invites()
         for invite in allInvites:

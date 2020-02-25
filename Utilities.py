@@ -19,9 +19,23 @@
 import discord
 
 import datetime
+import asyncpg
 import math
 
+from Constants import *
+
 client = discord.Client()
+
+connPool = None
+
+async def getConnection():
+    global connPool
+    if connPool is None:
+        connPool = await asyncpg.create_pool(DATABASE_URL)
+    return await connPool.acquire()
+
+async def returnConnection(conn):
+    await connPool.release(conn)
 
 def parseRole(server, string):
     role = None

@@ -37,7 +37,7 @@ async def mute(message):
         elif member.guild_permissions.administrator:
             await message.channel.send("Cannot mute any user with full admin permissions.")
         else:
-            conn = await asyncpg.connect(DATABASE_URL)
+            conn = await getConnection()
             if parsing[2] == "":
                 muteData = await conn.fetchrow('SELECT channel FROM tbl_muted_members WHERE server = $1 AND member = $2 AND channel = 0', member.guild.id, member.id)
                 if muteData is None:
@@ -60,7 +60,7 @@ async def mute(message):
                     reason = "Muting " + str(member) + " in " + str(channel) + " on " + str(message.author) + "'s order."
                     await channelMute(channel, member, reason)
                     await message.channel.send("Member " + member.mention + " muted in " + str(channel) + ".")
-            await conn.close()
+            await returnConnection(conn)
 
 async def channelMute(channel, member, reason):
     permissions = channel.permissions_for(member)
@@ -84,7 +84,7 @@ async def unmute(message):
         if member is None:
             await message.channel.send("Member not found.")
         else:
-            conn = await asyncpg.connect(DATABASE_URL)
+            conn = await getConnection()
             if parsing[2] == "":
                 await conn.execute('DELETE FROM tbl_muted_members WHERE server = $1 AND member = $2', message.guild.id, member.id)
                 reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
@@ -103,7 +103,7 @@ async def unmute(message):
                     reason = "Unmuting " + str(member) + " in " + str(channel) + " on " + str(message.author) + "'s order."
                     await channelUnmute(channel, member, reason)
                     await message.channel.send("Member " + member.mention + " unmuted in " + str(channel) + ".")
-            await conn.close()
+            await returnConnection(conn)
 
 async def channelUnmute(channel, member, reason):
     permissions = channel.overwrites_for(member)
@@ -115,9 +115,9 @@ async def channelUnmute(channel, member, reason):
             await channel.set_permissions(member, overwrite=permissions, reason=reason)
 
 async def persistMute(member):
-    conn = await asyncpg.connect(DATABASE_URL)
+    conn = await getConnection()
     muteData = await conn.fetch('SELECT channel FROM tbl_muted_members WHERE server = $1 AND member = $2', member.guild.id, member.id)
-    await conn.close()
+    await returnConnection(conn)
     if len(muteData) > 0:
         reason = "Remuting " + str(member) + " based on persistance record."
         for row in muteData:

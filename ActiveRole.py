@@ -65,7 +65,7 @@ async def setupActive(message):
             elif gap >= duration or duration >= max:
                 await message.channel.send("The *activity gap* has to be less than the *minimum activity duration*, which has to be less than the *maximum period of inactivity*.")
             else:
-                conn = await asyncpg.connect(DATABASE_URL)
+                conn = await getConnection()
                 serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
                 if serverData[0] > 0:
                     await conn.execute('UPDATE tbl_active_role_settings SET role = $1, gap = $2, duration = $3, max = $4 WHERE server = $5', role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id)
@@ -78,23 +78,23 @@ async def setupActive(message):
                 output += "... for at least __" + timeDeltaToString(duration) + "__.\n"
                 output += "And we'll take the role away if they stop posting for __" + timeDeltaToString(max) + "__.\n"
                 await message.channel.send(output)
-                await conn.close()
+                await returnConnection(conn)
 
 async def clearActive(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
         if serverData[0] > 0:
             await conn.execute('DELETE FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
             await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
         else:
             await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
-        await conn.close()
+        await returnConnection(conn)
 
 async def checkActive(message):
     if isinstance(message.author, discord.Member) and not message.author.bot:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetchrow('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
         if serverData is not None:
             role = message.guild.get_role(serverData[0])
@@ -119,11 +119,11 @@ async def checkActive(message):
             else:
                 activeRecordStart[message.guild.id][message.author.id] = message.created_at
             activeRecordLast[message.guild.id][message.author.id] = message.created_at
-        await conn.close()
+        await returnConnection(conn)
 
 async def persistActive(member):
     if isinstance(member, discord.Member) and not member.bot:
-        conn = await asyncpg.connect(DATABASE_URL)
+        conn = await getConnection()
         serverData = await conn.fetchrow('SELECT role, max FROM tbl_active_role_settings WHERE server = $1', member.guild.id)
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
@@ -140,4 +140,4 @@ async def persistActive(member):
             else:
                 if lastActive >= threshold:
                     await member.add_roles(role, reason="This user had their active role returned, since records show they met the active criteria at some point in the past " + timeDeltaToString(max) + ".")
-        await conn.close()
+        await returnConnection(conn)
