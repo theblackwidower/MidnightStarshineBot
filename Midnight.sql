@@ -91,3 +91,14 @@ CREATE TABLE "tbl_muted_members" (
   "channel" BIGINT DEFAULT 0,
   PRIMARY KEY("server", "member", "channel")
 );
+
+CREATE TABLE "tbl_timeout_channel" (
+  "server" BIGINT NOT NULL PRIMARY KEY,
+  "channel" BIGINT NOT NULL
+);
+
+CREATE TABLE "tbl_timedout_members" (
+  "server" BIGINT NOT NULL,
+  "member" BIGINT NOT NULL,
+  PRIMARY KEY("server", "member")
+);
