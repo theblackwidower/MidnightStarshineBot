@@ -24,7 +24,7 @@ CREATE TABLE "tbl_currency" (
 CREATE TABLE "tbl_payday_settings" (
   "server" BIGINT PRIMARY KEY,
   "amount" INTEGER NOT NULL,
-  "cooldown" INTEGER NOT NULL
+  "cooldown" INTERVAL NOT NULL
 );
 
 CREATE TABLE "tbl_paid_roles" (
@@ -37,7 +37,7 @@ CREATE TABLE "tbl_paid_roles" (
 CREATE TABLE "tbl_transactions" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,
-  "date" INTEGER NOT NULL,
+  "date" TIMESTAMP NOT NULL,
   "amount_in" INTEGER NOT NULL,
   "notes" TEXT,
   PRIMARY KEY("server", "member", "date")
@@ -58,15 +58,15 @@ CREATE TABLE "tbl_rule_posting" (
 CREATE TABLE "tbl_active_role_settings" (
   "server" BIGINT PRIMARY KEY,
   "role" BIGINT NOT NULL UNIQUE,
-  "gap" INTEGER NOT NULL,
-  "duration" INTEGER NOT NULL,
-  "max" INTEGER NOT NULL
+  "gap" INTERVAL NOT NULL,
+  "duration" INTERVAL NOT NULL,
+  "max" INTERVAL NOT NULL
 );
 
 CREATE TABLE "tbl_activity_record" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,
-  "last_active" INTEGER NOT NULL,
+  "last_active" TIMESTAMP NOT NULL,
   PRIMARY KEY("server", "member")
 );
 

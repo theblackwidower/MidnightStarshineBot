@@ -68,10 +68,10 @@ async def setupActive(message):
                 conn = await getConnection()
                 serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
                 if serverData[0] > 0:
-                    await conn.execute('UPDATE tbl_active_role_settings SET role = $1, gap = $2, duration = $3, max = $4 WHERE server = $5', role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds(), message.guild.id)
+                    await conn.execute('UPDATE tbl_active_role_settings SET role = $1, gap = $2, duration = $3, max = $4 WHERE server = $5', role.id, gap, duration, max, message.guild.id)
                     output = "Active user role successfully updated with the following parameters:\n"
                 else:
-                    await conn.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES ($1, $2, $3, $4, $5)', message.guild.id, role.id, gap.total_seconds(), duration.total_seconds(), max.total_seconds())
+                    await conn.execute('INSERT INTO tbl_active_role_settings (server, role, gap, duration, max) VALUES ($1, $2, $3, $4, $5)', message.guild.id, role.id, gap, duration, max)
                     output = "Active user role successfully set up with the following parameters:\n"
                 output += "We'll be assigning the \"__" + role.name + "__\" role...\n"
                 output += "... to any user who sends at least one message every __" + timeDeltaToString(gap) + "__...\n"
@@ -98,8 +98,8 @@ async def checkActive(message):
         serverData = await conn.fetchrow('SELECT role, gap, duration FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
         if serverData is not None:
             role = message.guild.get_role(serverData[0])
-            gap = datetime.timedelta(seconds=serverData[1])
-            duration = datetime.timedelta(seconds=serverData[2])
+            gap = serverData[1]
+            duration = serverData[2]
             if message.guild.id not in activeRecordLast:
                 setupDataCache(message.guild.id)
             if message.author.id in activeRecordLast[message.guild.id]:
@@ -109,9 +109,9 @@ async def checkActive(message):
                     if message.created_at >= startMessageTime + duration:
                         recordData = await conn.fetchrow('SELECT COUNT(member) FROM tbl_activity_record WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
                         if recordData[0] > 0:
-                            await conn.execute('UPDATE tbl_activity_record SET last_active = $1 WHERE server = $2 AND member = $3', message.created_at.timestamp(), message.guild.id, message.author.id)
+                            await conn.execute('UPDATE tbl_activity_record SET last_active = $1 WHERE server = $2 AND member = $3', message.created_at, message.guild.id, message.author.id)
                         else:
-                            await conn.execute('INSERT INTO tbl_activity_record (server, member, last_active) VALUES ($1, $2, $3)', message.guild.id, message.author.id, message.created_at.timestamp())
+                            await conn.execute('INSERT INTO tbl_activity_record (server, member, last_active) VALUES ($1, $2, $3)', message.guild.id, message.author.id, message.created_at)
                         if message.author.roles.count(message.author.guild.get_role(serverData[0])) == 0:
                             await message.author.add_roles(role, reason="Been sending at least one message per " + timeDeltaToString(gap) + " for " + timeDeltaToString(duration) + ".")
                 else:
@@ -127,11 +127,11 @@ async def persistActive(member):
         serverData = await conn.fetchrow('SELECT role, max FROM tbl_active_role_settings WHERE server = $1', member.guild.id)
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
-            max = datetime.timedelta(seconds=serverData[1])
+            max = serverData[1]
             threshold = datetime.datetime.now() - max
             recordData = await conn.fetchrow('SELECT last_active FROM tbl_activity_record WHERE server = $1 AND member = $2', member.guild.id, member.id)
             if recordData is not None:
-                lastActive = datetime.datetime.fromtimestamp(recordData[0])
+                lastActive = recordData[0]
             else:
                 lastActive = datetime.datetime.min
             if member.roles.count(role) > 0:
