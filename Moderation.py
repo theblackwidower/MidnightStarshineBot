@@ -105,16 +105,17 @@ async def channelMute(channel, member, reason):
     else:
         permissions = channel.permissions_for(member)
     if permissions.send_messages or permissions.add_reactions or permissions.speak:
-        overwrite = channel.overwrites_for(member)
         botPermissions = channel.permissions_for(channel.guild.me)
-        if botPermissions.send_messages:
-            overwrite.update(send_messages=False)
-        if botPermissions.add_reactions:
-            overwrite.update(add_reactions=False)
-        if botPermissions.speak:
-            overwrite.update(speak=False)
+        if botPermissions.read_messages:
+            overwrite = channel.overwrites_for(member)
+            if botPermissions.send_messages:
+                overwrite.update(send_messages=False)
+            if botPermissions.add_reactions:
+                overwrite.update(add_reactions=False)
+            if botPermissions.speak:
+                overwrite.update(speak=False)
 
-        await channel.set_permissions(member, overwrite=overwrite, reason=reason)
+            await channel.set_permissions(member, overwrite=overwrite, reason=reason)
 
 async def unmute(message):
     parsing = message.content.partition(" ")
@@ -291,12 +292,12 @@ async def channelBanishForTimeout(channel, member, reason):
     else:
         permissions = channel.permissions_for(member)
     if permissions.read_messages:
-        overwrite = channel.overwrites_for(member)
         botPermissions = channel.permissions_for(channel.guild.me)
         if botPermissions.read_messages:
+            overwrite = channel.overwrites_for(member)
             overwrite.update(read_messages=False)
 
-        await channel.set_permissions(member, overwrite=overwrite, reason=reason)
+            await channel.set_permissions(member, overwrite=overwrite, reason=reason)
 
 async def channelOpenForTimeout(channel, member, reason):
     if isinstance(member, discord.Role):
@@ -304,14 +305,14 @@ async def channelOpenForTimeout(channel, member, reason):
     else:
         permissions = channel.permissions_for(member)
     if not permissions.read_messages or not permissions.send_messages:
-        overwrite = channel.overwrites_for(member)
         botPermissions = channel.permissions_for(channel.guild.me)
         if botPermissions.read_messages:
+            overwrite = channel.overwrites_for(member)
             overwrite.update(read_messages=True)
-        if botPermissions.send_messages:
-            overwrite.update(send_messages=True)
+            if botPermissions.send_messages:
+                overwrite.update(send_messages=True)
 
-        await channel.set_permissions(member, overwrite=overwrite, reason=reason)
+            await channel.set_permissions(member, overwrite=overwrite, reason=reason)
 
 async def timein(message):
     parsing = message.content.partition(" ")
