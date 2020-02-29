@@ -21,14 +21,43 @@ import asyncpg
 from Constants import *
 from Utilities import *
 
+MOD_MUTE_ROLE_SETUP_COMMAND = "setupmuterole"
 MOD_MUTE_COMMAND = "mute"
 MOD_UNMUTE_COMMAND = "unmute"
 MOD_TIMEOUT_SETUP_COMMAND = "setuptimeout"
+MOD_TIMEOUT_ROLE_SETUP_COMMAND = "setuptimeoutrole"
 MOD_TIMEOUT_COMMAND = "timeout"
 MOD_TIMEIN_COMMAND = "return"
 MOD_KICK_COMMAND = "kick"
 MOD_BAN_SIMPLE_COMMAND = "ban"
 MOD_BAN_DELETE_COMMAND = "spamban"
+
+async def setupMuteRole(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_MUTE_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        role = parseRole(message.guild, parsing[2])
+        if role is None:
+            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+        else:
+            conn = await getConnection()
+            serverData = await conn.fetchrow('SELECT role FROM tbl_mute_roles WHERE server = $1', message.guild.id)
+            if serverData is None:
+                await conn.execute('INSERT INTO tbl_mute_roles (server, role) VALUES ($1, $2)', message.guild.id, role.id)
+                output = "Mute role now set to " + role.mention
+            else:
+                if serverData[0] == role.id:
+                    output = "Reran setup of the mute role " + role.mention
+                else:
+                    await conn.execute('UPDATE tbl_mute_roles SET role = $1 WHERE server = $2', role.id, message.guild.id)
+                    output = "Mute role now updated to " + role.mention
+            reason="Setting up muted role."
+            for category, channelList in message.guild.by_category():
+                if category is not None:
+                    await channelMute(category, role, reason)
+                for channel in channelList:
+                    await channelMute(channel, role, reason)
+            await message.channel.send(output)
+            await returnConnection(conn)
 
 async def mute(message):
     parsing = message.content.partition(" ")
@@ -46,6 +75,11 @@ async def mute(message):
                 if muteData is None:
                     await conn.execute('INSERT INTO tbl_muted_members (server, member) VALUES ($1, $2)', message.guild.id, member.id)
                 reason = "Muting " + str(member) + " on " + str(message.author) + "'s order."
+                roleData = await conn.fetchrow('SELECT role FROM tbl_mute_roles WHERE server = $1', member.guild.id)
+                if roleData is not None:
+                    role = member.guild.get_role(roleData[0])
+                    if role is not None:
+                        await member.add_roles(role, reason=reason)
                 for category, channelList in message.guild.by_category():
                     if category is not None:
                         await channelMute(category, member, reason)
@@ -66,7 +100,10 @@ async def mute(message):
             await returnConnection(conn)
 
 async def channelMute(channel, member, reason):
-    permissions = channel.permissions_for(member)
+    if isinstance(member, discord.Role):
+        permissions = discord.Permissions.all_channel()
+    else:
+        permissions = channel.permissions_for(member)
     if permissions.send_messages or permissions.add_reactions or permissions.speak:
         overwrite = channel.overwrites_for(member)
         botPermissions = channel.permissions_for(channel.guild.me)
@@ -91,6 +128,11 @@ async def unmute(message):
             if parsing[2] == "":
                 await conn.execute('DELETE FROM tbl_muted_members WHERE server = $1 AND member = $2', message.guild.id, member.id)
                 reason = "Unmuting " + str(member) + " on " + str(message.author) + "'s order."
+                roleData = await conn.fetchrow('SELECT role FROM tbl_mute_roles WHERE server = $1', member.guild.id)
+                if roleData is not None:
+                    role = member.guild.get_role(roleData[0])
+                    if role is not None:
+                        await member.remove_roles(role, reason=reason)
                 for category, channelList in message.guild.by_category():
                     if category is not None:
                         await channelUnmute(category, member, reason)
@@ -120,11 +162,15 @@ async def channelUnmute(channel, member, reason):
 async def persistMute(member):
     conn = await getConnection()
     muteData = await conn.fetch('SELECT channel FROM tbl_muted_members WHERE server = $1 AND member = $2', member.guild.id, member.id)
-    await returnConnection(conn)
     if len(muteData) > 0:
         reason = "Remuting " + str(member) + " based on persistance record."
         for row in muteData:
             if row[0] == 0:
+                roleData = await conn.fetchrow('SELECT role FROM tbl_mute_roles WHERE server = $1', member.guild.id)
+                if roleData is not None:
+                    role = member.guild.get_role(roleData[0])
+                    if role is not None:
+                        await member.add_roles(role, reason=reason)
                 for category, channelList in member.guild.by_category():
                     if category is not None:
                         await channelMute(category, member, reason)
@@ -133,6 +179,7 @@ async def persistMute(member):
             else:
                 channel = member.guild.get_channel(row[0])
                 await channelMute(channel, member, reason)
+    await returnConnection(conn)
 
 async def setupTimeout(message):
     parsing = message.content.partition(" ")
@@ -150,6 +197,51 @@ async def setupTimeout(message):
                 await conn.execute('INSERT INTO tbl_timeout_channel (server, channel) VALUES ($1, $2)', message.guild.id, channel.id)
                 output = "Timeout command now setup to send people to " + channel.mention
             await message.channel.send(output)
+            await returnConnection(conn)
+
+async def setupTimeoutRole(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + MOD_TIMEOUT_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        role = parseRole(message.guild, parsing[2])
+        if role is None:
+            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+        else:
+            conn = await getConnection()
+            channelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
+            if channelData is None:
+                await message.channel.send("Please set up the timeout channel using the `" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "` command before setting up the role.")
+            else:
+                timeoutChannel = message.guild.get_channel(channelData[0])
+                if timeoutChannel is None:
+                    await message.channel.send("Cannot find the designated timeout channel. Was it deleted somehow?")
+                else:
+                    serverData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', message.guild.id)
+                    if serverData is None:
+                        await conn.execute('INSERT INTO tbl_timeout_roles (server, role) VALUES ($1, $2)', message.guild.id, role.id)
+                        output = "Timeout role now set to " + role.mention
+                    else:
+                        if serverData[0] == role.id:
+                            output = "Reran setup of the timeout role " + role.mention
+                        else:
+                            await conn.execute('UPDATE tbl_timeout_roles SET role = $1 WHERE server = $2', role.id, message.guild.id)
+                            output = "Timeout role now updated to " + role.mention
+                    reason="Setting up timeout role."
+                    for category, channelList in message.guild.by_category():
+                        if category == timeoutChannel:
+                            if category is not None:
+                                await channelOpenForTimeout(category, role, reason)
+                            for channel in channelList:
+                                await channelOpenForTimeout(channel, role, reason)
+                        else:
+                            if category is not None:
+                                await channelBanishForTimeout(category, role, reason)
+                            for channel in channelList:
+                                if channel == timeoutChannel:
+                                    await channelOpenForTimeout(channel, role, reason)
+                                else:
+                                    await channelBanishForTimeout(channel, role, reason)
+
+                    await message.channel.send(output)
             await returnConnection(conn)
 
 async def timeout(message):
@@ -171,6 +263,11 @@ async def timeout(message):
                 if timeoutData[0] > 0:
                     await conn.execute('INSERT INTO tbl_muted_members (server, member) VALUES ($1, $2)', message.guild.id, member.id)
                 reason = "Sending " + str(member) + " to a timeout on " + str(message.author) + "'s order."
+                roleData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', member.guild.id)
+                if roleData is not None:
+                    role = member.guild.get_role(roleData[0])
+                    if role is not None:
+                        await member.add_roles(role, reason=reason)
                 for category, channelList in message.guild.by_category():
                     if category == timeoutChannel:
                         if category is not None:
@@ -189,7 +286,10 @@ async def timeout(message):
         await returnConnection(conn)
 
 async def channelBanishForTimeout(channel, member, reason):
-    permissions = channel.permissions_for(member)
+    if isinstance(member, discord.Role):
+        permissions = discord.Permissions.all_channel()
+    else:
+        permissions = channel.permissions_for(member)
     if permissions.read_messages:
         overwrite = channel.overwrites_for(member)
         botPermissions = channel.permissions_for(channel.guild.me)
@@ -199,7 +299,10 @@ async def channelBanishForTimeout(channel, member, reason):
         await channel.set_permissions(member, overwrite=overwrite, reason=reason)
 
 async def channelOpenForTimeout(channel, member, reason):
-    permissions = channel.permissions_for(member)
+    if isinstance(member, discord.Role):
+        permissions = discord.Permissions.all_channel()
+    else:
+        permissions = channel.permissions_for(member)
     if not permissions.read_messages or not permissions.send_messages:
         overwrite = channel.overwrites_for(member)
         botPermissions = channel.permissions_for(channel.guild.me)
@@ -223,6 +326,11 @@ async def timein(message):
             else:
                 await conn.execute('DELETE FROM tbl_timedout_members WHERE server = $1 AND member = $2', message.guild.id, member.id)
                 reason = "Removing " + str(member) + " from a timeout on " + str(message.author) + "'s order."
+                roleData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', member.guild.id)
+                if roleData is not None:
+                    role = member.guild.get_role(roleData[0])
+                    if role is not None:
+                        await member.remove_roles(role, reason=reason)
                 for category, channelList in message.guild.by_category():
                     if category == timeoutChannel:
                         if category is not None:
@@ -263,11 +371,16 @@ async def persistTimeout(member):
     timeoutData = await conn.fetchrow('SELECT COUNT(member) FROM tbl_timedout_members WHERE server = $1 AND member = $2', member.guild.id, member.id)
     if timeoutData[0] > 0:
         channelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', member.guild.id)
-        await returnConnection(conn)
         if channelData is not None:
             timeoutChannel = message.guild.get_channel(channelData[0])
             if timeoutChannel is not None:
                 reason = "Returning " + str(member) + " to timeout based on persistance record."
+                roleData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', member.guild.id)
+                await returnConnection(conn)
+                if roleData is not None:
+                    role = member.guild.get_role(roleData[0])
+                    if role is not None:
+                        await member.add_roles(role, reason=reason)
                 for category, channelList in message.guild.by_category():
                     if category == timeoutChannel:
                         if category is not None:
@@ -282,6 +395,10 @@ async def persistTimeout(member):
                                 await channelOpenForTimeout(channel, member, reason)
                             else:
                                 await channelBanishForTimeout(channel, member, reason)
+            else:
+                await returnConnection(conn)
+        else:
+            await returnConnection(conn)
     else:
         await returnConnection(conn)
 

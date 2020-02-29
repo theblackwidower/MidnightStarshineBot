@@ -183,9 +183,11 @@ async def on_message(message):
             await setRuleChannel(message)
             await clearRuleChannel(message)
 
+            await setupMuteRole(message)
             await mute(message)
             await unmute(message)
             await setupTimeout(message)
+            await setupTimeoutRole(message)
             await timeout(message)
             await timein(message)
             await kick(message)
@@ -278,11 +280,17 @@ async def help(message):
                     output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
             if isManagePerms or userPerms.kick_members or userPerms.ban_members:
                 output += "\n*Moderation:*\n"
+            if isManagePerms:
+                output += "`" + COMMAND_PREFIX + MOD_MUTE_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the mute function. This'll speed up and simplify excution while still maintaining the system's strength.\n"
             if userPerms.kick_members:
                 output += "`" + COMMAND_PREFIX + MOD_MUTE_COMMAND + "`: Will mute the specified user in the specified channel, or all channels if none is specified.\n"
                 output += "`" + COMMAND_PREFIX + MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in the specified channel, or all channels if none is specified.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "`: Can be used to set up timeouts, which restricts a user to a single channel or category specifically for that purpose. Just specify the channel or category, and you're all set.\n"
+                output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the timeout function. This'll speed up and simplify excution while still maintaining the system's strength."
+                if timeoutData is None:
+                    output += " Please be sure to run the `" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "` command before attempting to set up the role."
+                output += "\n"
             if userPerms.kick_members:
                 if timeoutData is not None:
                     output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_COMMAND + "`: Will isolate the specified user to a single channel: <#" + str(timeoutData[0]) + ">\n"

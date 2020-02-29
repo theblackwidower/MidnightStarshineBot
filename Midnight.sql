@@ -85,6 +85,11 @@ CREATE TABLE "tbl_recruitment_record" (
   CHECK("recruiter" <> "recruited_member")
 );
 
+CREATE TABLE "tbl_mute_roles" (
+  "server" BIGINT NOT NULL PRIMARY KEY,
+  "role" BIGINT NOT NULL
+);
+
 CREATE TABLE "tbl_muted_members" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,
@@ -95,6 +100,11 @@ CREATE TABLE "tbl_muted_members" (
 CREATE TABLE "tbl_timeout_channel" (
   "server" BIGINT NOT NULL PRIMARY KEY,
   "channel" BIGINT NOT NULL
+);
+
+CREATE TABLE "tbl_timeout_roles" (
+  "server" BIGINT NOT NULL PRIMARY KEY,
+  "role" BIGINT NOT NULL
 );
 
 CREATE TABLE "tbl_timedout_members" (
