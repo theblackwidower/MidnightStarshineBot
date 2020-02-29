@@ -260,8 +260,8 @@ async def timeout(message):
                 await message.channel.send("Cannot timeout any user with full admin permissions.")
             else:
                 timeoutData = await conn.fetchrow('SELECT COUNT(member) FROM tbl_timedout_members WHERE server = $1 AND member = $2', member.guild.id, member.id)
-                if timeoutData[0] > 0:
-                    await conn.execute('INSERT INTO tbl_muted_members (server, member) VALUES ($1, $2)', message.guild.id, member.id)
+                if timeoutData[0] == 0:
+                    await conn.execute('INSERT INTO tbl_timedout_members (server, member) VALUES ($1, $2)', message.guild.id, member.id)
                 reason = "Sending " + str(member) + " to a timeout on " + str(message.author) + "'s order."
                 roleData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', member.guild.id)
                 if roleData is not None:
@@ -372,7 +372,7 @@ async def persistTimeout(member):
     if timeoutData[0] > 0:
         channelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', member.guild.id)
         if channelData is not None:
-            timeoutChannel = message.guild.get_channel(channelData[0])
+            timeoutChannel = member.guild.get_channel(channelData[0])
             if timeoutChannel is not None:
                 reason = "Returning " + str(member) + " to timeout based on persistance record."
                 roleData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', member.guild.id)
@@ -381,7 +381,7 @@ async def persistTimeout(member):
                     role = member.guild.get_role(roleData[0])
                     if role is not None:
                         await member.add_roles(role, reason=reason)
-                for category, channelList in message.guild.by_category():
+                for category, channelList in member.guild.by_category():
                     if category == timeoutChannel:
                         if category is not None:
                             await channelOpenForTimeout(category, member, reason)

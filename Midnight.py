@@ -125,6 +125,7 @@ async def on_member_join(member):
     await persistBuyablesMember(member)
     await persistPromoterRole(member)
     await persistMute(member)
+    await persistTimeout(member)
     await recordRecruit(member)
 
 @client.event
