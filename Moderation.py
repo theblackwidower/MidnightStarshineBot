@@ -301,7 +301,7 @@ async def channelBanishForTimeout(channel, member, reason):
 
 async def channelOpenForTimeout(channel, member, reason):
     if isinstance(member, discord.Role):
-        permissions = discord.Permissions.all_channel()
+        permissions = discord.Permissions.none()
     else:
         permissions = channel.permissions_for(member)
     if not permissions.read_messages or not permissions.send_messages:
