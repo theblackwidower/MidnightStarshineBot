@@ -62,7 +62,7 @@ async def setupMuteRole(message):
 async def mute(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_MUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        parsing = parsing[2].partition(" ")
+        parsing = parsing[2].strip().partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -120,7 +120,7 @@ async def channelMute(channel, member, reason):
 async def unmute(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_UNMUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        parsing = parsing[2].partition(" ")
+        parsing = parsing[2].strip().partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -406,7 +406,7 @@ async def persistTimeout(member):
 async def kick(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_KICK_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        parsing = parsing[2].partition(" ")
+        parsing = parsing[2].strip().partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -426,7 +426,7 @@ async def kick(message):
 async def ban(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND and message.author.permissions_in(message.channel).ban_members:
-        parsing = parsing[2].partition(" ")
+        parsing = parsing[2].strip().partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -446,7 +446,7 @@ async def ban(message):
 async def banDelete(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND and message.author.permissions_in(message.channel).ban_members and message.author.permissions_in(message.channel).manage_messages:
-        parsing = parsing[2].partition(" ")
+        parsing = parsing[2].strip().partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")

@@ -38,6 +38,7 @@ async def returnConnection(conn):
     await connPool.release(conn)
 
 def parseRole(server, string):
+    string = string.strip()
     role = None
     if string.startswith("<@&") and string.endswith(">"):
         roleId = string[3:len(string) - 1]
@@ -50,6 +51,7 @@ def parseRole(server, string):
     return role
 
 def parseMember(server, string):
+    string = string.strip()
     member = None
     if string.startswith("<@") and string.endswith(">"):
         memberId = string[2:len(string) - 1]
@@ -60,6 +62,7 @@ def parseMember(server, string):
     return member
 
 def parseChannel(server, string):
+    string = string.strip()
     member = None
     if string.startswith("<#") and string.endswith(">"):
         channelId = string[2:len(string) - 1]
@@ -68,6 +71,7 @@ def parseChannel(server, string):
     return member
 
 def parseTimeDelta(string):
+    string = string.strip()
     num = string[:len(string) - 1]
     if num.isdigit():
         num = int(num)
