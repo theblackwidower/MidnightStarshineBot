@@ -51,11 +51,7 @@ async def setupMuteRole(message):
                     await conn.execute('UPDATE tbl_mute_roles SET role = $1 WHERE server = $2', role.id, message.guild.id)
                     output = "Mute role now updated to " + role.mention
             reason="Setting up muted role."
-            for category, channelList in message.guild.by_category():
-                if category is not None:
-                    await channelMute(category, role, reason)
-                for channel in channelList:
-                    await channelMute(channel, role, reason)
+            await allChannelMute(role, reason)
             await message.channel.send(output)
             await returnConnection(conn)
 
@@ -80,11 +76,7 @@ async def mute(message):
                     role = member.guild.get_role(roleData[0])
                     if role is not None:
                         await member.add_roles(role, reason=reason)
-                for category, channelList in message.guild.by_category():
-                    if category is not None:
-                        await channelMute(category, member, reason)
-                    for channel in channelList:
-                        await channelMute(channel, member, reason)
+                await allChannelMute(member, reason)
                 await message.channel.send("Member " + member.mention + " muted.")
             else:
                 channel = parseChannel(message.guild, parsing[2])
@@ -98,6 +90,13 @@ async def mute(message):
                     await channelMute(channel, member, reason)
                     await message.channel.send("Member " + member.mention + " muted in " + str(channel) + ".")
             await returnConnection(conn)
+
+async def allChannelMute(subject, reason):
+    for category, channelList in subject.guild.by_category():
+        if category is not None:
+            await channelMute(category, subject, reason)
+        for channel in channelList:
+            await channelMute(channel, subject, reason)
 
 async def channelMute(channel, subject, reason):
     if isinstance(subject, discord.Role):
@@ -172,11 +171,7 @@ async def persistMute(member):
                     role = member.guild.get_role(roleData[0])
                     if role is not None:
                         await member.add_roles(role, reason=reason)
-                for category, channelList in member.guild.by_category():
-                    if category is not None:
-                        await channelMute(category, member, reason)
-                    for channel in channelList:
-                        await channelMute(channel, member, reason)
+                await allChannelMute(member, reason)
             else:
                 channel = member.guild.get_channel(row[0])
                 await channelMute(channel, member, reason)
@@ -227,21 +222,7 @@ async def setupTimeoutRole(message):
                             await conn.execute('UPDATE tbl_timeout_roles SET role = $1 WHERE server = $2', role.id, message.guild.id)
                             output = "Timeout role now updated to " + role.mention
                     reason="Setting up timeout role."
-                    for category, channelList in message.guild.by_category():
-                        if category == timeoutChannel:
-                            if category is not None:
-                                await channelOpenForTimeout(category, role, reason)
-                            for channel in channelList:
-                                await channelOpenForTimeout(channel, role, reason)
-                        else:
-                            if category is not None:
-                                await channelBanishForTimeout(category, role, reason)
-                            for channel in channelList:
-                                if channel == timeoutChannel:
-                                    await channelOpenForTimeout(channel, role, reason)
-                                else:
-                                    await channelBanishForTimeout(channel, role, reason)
-
+                    await allChannelTimeout(role, reason, timeoutChannel)
                     await message.channel.send(output)
             await returnConnection(conn)
 
@@ -269,22 +250,25 @@ async def timeout(message):
                     role = member.guild.get_role(roleData[0])
                     if role is not None:
                         await member.add_roles(role, reason=reason)
-                for category, channelList in message.guild.by_category():
-                    if category == timeoutChannel:
-                        if category is not None:
-                            await channelOpenForTimeout(category, member, reason)
-                        for channel in channelList:
-                            await channelOpenForTimeout(channel, member, reason)
-                    else:
-                        if category is not None:
-                            await channelBanishForTimeout(category, member, reason)
-                        for channel in channelList:
-                            if channel == timeoutChannel:
-                                await channelOpenForTimeout(channel, member, reason)
-                            else:
-                                await channelBanishForTimeout(channel, member, reason)
+                await allChannelTimeout(member, reason, timeoutChannel)
                 await message.channel.send("Member " + member.mention + " sent to a timeout.")
         await returnConnection(conn)
+
+async def allChannelTimeout(subject, reason, timeoutChannel):
+    for category, channelList in subject.guild.by_category():
+        if category == timeoutChannel:
+            if category is not None:
+                await channelOpenForTimeout(category, subject, reason)
+            for channel in channelList:
+                await channelOpenForTimeout(channel, subject, reason)
+        else:
+            if category is not None:
+                await channelBanishForTimeout(category, subject, reason)
+            for channel in channelList:
+                if channel == timeoutChannel:
+                    await channelOpenForTimeout(channel, subject, reason)
+                else:
+                    await channelBanishForTimeout(channel, subject, reason)
 
 async def channelBanishForTimeout(channel, subject, reason):
     if isinstance(subject, discord.Role):
@@ -382,20 +366,7 @@ async def persistTimeout(member):
                     role = member.guild.get_role(roleData[0])
                     if role is not None:
                         await member.add_roles(role, reason=reason)
-                for category, channelList in member.guild.by_category():
-                    if category == timeoutChannel:
-                        if category is not None:
-                            await channelOpenForTimeout(category, member, reason)
-                        for channel in channelList:
-                            await channelOpenForTimeout(channel, member, reason)
-                    else:
-                        if category is not None:
-                            await channelBanishForTimeout(category, member, reason)
-                        for channel in channelList:
-                            if channel == timeoutChannel:
-                                await channelOpenForTimeout(channel, member, reason)
-                            else:
-                                await channelBanishForTimeout(channel, member, reason)
+                await allChannelTimeout(member, reason, timeoutChannel)
             else:
                 await returnConnection(conn)
         else:
