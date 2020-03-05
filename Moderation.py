@@ -99,15 +99,15 @@ async def mute(message):
                     await message.channel.send("Member " + member.mention + " muted in " + str(channel) + ".")
             await returnConnection(conn)
 
-async def channelMute(channel, member, reason):
-    if isinstance(member, discord.Role):
+async def channelMute(channel, subject, reason):
+    if isinstance(subject, discord.Role):
         permissions = discord.Permissions.all_channel()
     else:
-        permissions = channel.permissions_for(member)
+        permissions = channel.permissions_for(subject)
     if permissions.send_messages or permissions.add_reactions or permissions.speak:
         botPermissions = channel.permissions_for(channel.guild.me)
         if botPermissions.read_messages:
-            overwrite = channel.overwrites_for(member)
+            overwrite = channel.overwrites_for(subject)
             if botPermissions.send_messages:
                 overwrite.update(send_messages=False)
             if botPermissions.add_reactions:
@@ -115,7 +115,7 @@ async def channelMute(channel, member, reason):
             if botPermissions.speak:
                 overwrite.update(speak=False)
 
-            await channel.set_permissions(member, overwrite=overwrite, reason=reason)
+            await channel.set_permissions(subject, overwrite=overwrite, reason=reason)
 
 async def unmute(message):
     parsing = message.content.partition(" ")
@@ -286,33 +286,33 @@ async def timeout(message):
                 await message.channel.send("Member " + member.mention + " sent to a timeout.")
         await returnConnection(conn)
 
-async def channelBanishForTimeout(channel, member, reason):
-    if isinstance(member, discord.Role):
+async def channelBanishForTimeout(channel, subject, reason):
+    if isinstance(subject, discord.Role):
         permissions = discord.Permissions.all_channel()
     else:
-        permissions = channel.permissions_for(member)
+        permissions = channel.permissions_for(subject)
     if permissions.read_messages:
         botPermissions = channel.permissions_for(channel.guild.me)
         if botPermissions.read_messages:
-            overwrite = channel.overwrites_for(member)
+            overwrite = channel.overwrites_for(subject)
             overwrite.update(read_messages=False)
 
-            await channel.set_permissions(member, overwrite=overwrite, reason=reason)
+            await channel.set_permissions(subject, overwrite=overwrite, reason=reason)
 
-async def channelOpenForTimeout(channel, member, reason):
-    if isinstance(member, discord.Role):
+async def channelOpenForTimeout(channel, subject, reason):
+    if isinstance(subject, discord.Role):
         permissions = discord.Permissions.none()
     else:
-        permissions = channel.permissions_for(member)
+        permissions = channel.permissions_for(subject)
     if not permissions.read_messages or not permissions.send_messages:
         botPermissions = channel.permissions_for(channel.guild.me)
         if botPermissions.read_messages:
-            overwrite = channel.overwrites_for(member)
+            overwrite = channel.overwrites_for(subject)
             overwrite.update(read_messages=True)
             if botPermissions.send_messages:
                 overwrite.update(send_messages=True)
 
-            await channel.set_permissions(member, overwrite=overwrite, reason=reason)
+            await channel.set_permissions(subject, overwrite=overwrite, reason=reason)
 
 async def timein(message):
     parsing = message.content.partition(" ")
