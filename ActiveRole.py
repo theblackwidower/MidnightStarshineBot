@@ -128,7 +128,7 @@ async def persistActive(member):
         if serverData is not None:
             role = member.guild.get_role(serverData[0])
             max = serverData[1]
-            threshold = datetime.datetime.now() - max
+            threshold = datetime.datetime.utcnow() - max
             recordData = await conn.fetchrow('SELECT last_active FROM tbl_activity_record WHERE server = $1 AND member = $2', member.guild.id, member.id)
             if recordData is not None:
                 lastActive = recordData[0]
