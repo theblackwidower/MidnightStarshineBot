@@ -37,10 +37,12 @@ async def setRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         conn = await getConnection()
-        await conn.execute('INSERT INTO tbl_rules (server, content) VALUES ($1, $2)', server_id, parsing[2])
-        ruleData = await conn.fetchrow('SELECT COUNT(id) FROM tbl_rules WHERE server = $1', server_id)
-        await message.channel.send("Rule #" + str(ruleData[0]) + " has been set to: " + parsing[2])
-        await returnConnection(conn)
+        try:
+            await conn.execute('INSERT INTO tbl_rules (server, content) VALUES ($1, $2)', server_id, parsing[2])
+            ruleData = await conn.fetchrow('SELECT COUNT(id) FROM tbl_rules WHERE server = $1', server_id)
+            await message.channel.send("Rule #" + str(ruleData[0]) + " has been set to: " + parsing[2])
+        finally:
+            await returnConnection(conn)
         await updateRuleChannel(message)
 
 async def getRule(message):
@@ -48,8 +50,10 @@ async def getRule(message):
     if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
         if parsing[2].isdigit():
             conn = await getConnection()
-            ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
-            await returnConnection(conn)
+            try:
+                ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
+            finally:
+                await returnConnection(conn)
             rule_num = int(parsing[2])
             if rule_num <= len(ruleData) and rule_num > 0:
                 await message.channel.send("Rule #" + parsing[2] + ": " + ruleData[rule_num - 1][0])
@@ -61,8 +65,10 @@ async def getRule(message):
 
 async def getRuleId(server_id, rule_num):
     conn = await getConnection()
-    ruleData = await conn.fetch('SELECT id FROM tbl_rules WHERE server = $1 ORDER BY id', server_id)
-    await returnConnection(conn)
+    try:
+        ruleData = await conn.fetch('SELECT id FROM tbl_rules WHERE server = $1 ORDER BY id', server_id)
+    finally:
+        await returnConnection(conn)
     if rule_num <= len(ruleData) and rule_num > 0:
         returnValue = ruleData[rule_num - 1][0]
     else:
@@ -77,9 +83,11 @@ async def editRule(message):
             rule_id = await getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
                 conn = await getConnection()
-                await conn.execute('UPDATE tbl_rules SET content = $1 WHERE id = $2', parsing[2], rule_id)
-                await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
-                await returnConnection(conn)
+                try:
+                    await conn.execute('UPDATE tbl_rules SET content = $1 WHERE id = $2', parsing[2], rule_id)
+                    await message.channel.send("Rule #" + parsing[0] + " is now: " + parsing[2])
+                finally:
+                    await returnConnection(conn)
                 await updateRuleChannel(message)
             else:
                 await message.channel.send("There is no rule #" + parsing[0])
@@ -93,9 +101,11 @@ async def deleteRule(message):
             rule_id = await getRuleId(message.guild.id, int(parsing[2]))
             if rule_id is not None:
                 conn = await getConnection()
-                await conn.execute('DELETE FROM tbl_rules WHERE id = $1', rule_id)
-                await message.channel.send("Rule #" + parsing[2] + " has been deleted")
-                await returnConnection(conn)
+                try:
+                    await conn.execute('DELETE FROM tbl_rules WHERE id = $1', rule_id)
+                    await message.channel.send("Rule #" + parsing[2] + " has been deleted")
+                finally:
+                    await returnConnection(conn)
                 await updateRuleChannel(message)
             else:
                 await message.channel.send("There is no rule #" + parsing[2])
@@ -106,8 +116,10 @@ async def getAllRules(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
         conn = await getConnection()
-        ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
-        await returnConnection(conn)
+        try:
+            ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
+        finally:
+            await returnConnection(conn)
         count = len(ruleData)
         if count > 0:
             output = "**SERVER RULES** for " + message.guild.name + ":"
@@ -123,8 +135,10 @@ async def getRuleBackup(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         conn = await getConnection()
-        ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
-        await returnConnection(conn)
+        try:
+            ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
+        finally:
+            await returnConnection(conn)
         count = len(ruleData)
         if count > 0:
             output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
@@ -148,57 +162,63 @@ async def setRuleChannel(message):
             ruleChannel = message.channel_mentions[0]
             server_id = message.guild.id
             conn = await getConnection()
-            oldData = await conn.fetchrow('SELECT channel FROM tbl_rule_posting WHERE server = $1', server_id)
-            if oldData is not None and oldData[0] == ruleChannel.id:
-                await message.channel.send("The rules are already posted in that channel.")
-            else:
-                rulesData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', server_id)
-                count = len(rulesData)
-                ruleOutput = "**RULES:**"
-                for i in range(count):
-                    # TODO: add some kind of length control
-                    ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
-                ruleMessage = await ruleChannel.send(ruleOutput)
-                if oldData is None:
-                    await conn.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES ($1, $2, $3)', server_id, ruleChannel.id, ruleMessage.id)
+            try:
+                oldData = await conn.fetchrow('SELECT channel FROM tbl_rule_posting WHERE server = $1', server_id)
+                if oldData is not None and oldData[0] == ruleChannel.id:
+                    await message.channel.send("The rules are already posted in that channel.")
                 else:
-                    await conn.execute('UPDATE tbl_rule_posting SET channel = $1, message = $2 WHERE server = $3', ruleChannel.id, ruleMessage.id, server_id)
-                await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
-            await returnConnection(conn)
+                    rulesData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', server_id)
+                    count = len(rulesData)
+                    ruleOutput = "**RULES:**"
+                    for i in range(count):
+                        # TODO: add some kind of length control
+                        ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
+                    ruleMessage = await ruleChannel.send(ruleOutput)
+                    if oldData is None:
+                        await conn.execute('INSERT INTO tbl_rule_posting (server, channel, message) VALUES ($1, $2, $3)', server_id, ruleChannel.id, ruleMessage.id)
+                    else:
+                        await conn.execute('UPDATE tbl_rule_posting SET channel = $1, message = $2 WHERE server = $3', ruleChannel.id, ruleMessage.id, server_id)
+                    await message.channel.send("Rules now posted in " + ruleChannel.mention + ".")
+            finally:
+                await returnConnection(conn)
 
 async def clearRuleChannel(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         conn = await getConnection()
-        channelData = await conn.fetchrow('SELECT channel, message FROM tbl_rule_posting WHERE server = $1', server_id)
-        if channelData is None:
-            await message.channel.send("No rule postings recorded.")
-        else:
-            ruleChannel = message.guild.get_channel(channelData[0])
-            try:
-                ruleMessage = await ruleChannel.fetch_message(channelData[1])
-                await ruleMessage.delete()
-            except discord.errors.NotFound:
-                pass
-            await conn.execute('DELETE FROM tbl_rule_posting WHERE server = $1', server_id)
-            await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
-        await returnConnection(conn)
+        try:
+            channelData = await conn.fetchrow('SELECT channel, message FROM tbl_rule_posting WHERE server = $1', server_id)
+            if channelData is None:
+                await message.channel.send("No rule postings recorded.")
+            else:
+                ruleChannel = message.guild.get_channel(channelData[0])
+                try:
+                    ruleMessage = await ruleChannel.fetch_message(channelData[1])
+                    await ruleMessage.delete()
+                except discord.errors.NotFound:
+                    pass
+                await conn.execute('DELETE FROM tbl_rule_posting WHERE server = $1', server_id)
+                await message.channel.send("Rule posting in " + ruleChannel.mention + " has been deleted.")
+        finally:
+            await returnConnection(conn)
 
 async def updateRuleChannel(message):
     server_id = message.guild.id
     conn = await getConnection()
-    messageData = await conn.fetchrow('SELECT channel, message FROM tbl_rule_posting WHERE server = $1', server_id)
-    if messageData is not None:
-        try:
-            ruleMessage = await message.guild.get_channel(messageData[0]).fetch_message(messageData[1])
-            rulesData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', server_id)
-            count = len(rulesData)
-            ruleOutput = "**RULES:**"
-            for i in range(count):
-                # TODO: add some kind of length control
-                ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
-            await ruleMessage.edit(content=ruleOutput)
-        except discord.errors.NotFound:
-            await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
-    await returnConnection(conn)
+    try:
+        messageData = await conn.fetchrow('SELECT channel, message FROM tbl_rule_posting WHERE server = $1', server_id)
+        if messageData is not None:
+            try:
+                ruleMessage = await message.guild.get_channel(messageData[0]).fetch_message(messageData[1])
+                rulesData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', server_id)
+                count = len(rulesData)
+                ruleOutput = "**RULES:**"
+                for i in range(count):
+                    # TODO: add some kind of length control
+                    ruleOutput += "\n\n" + str(i + 1) + ": " + rulesData[i][0]
+                await ruleMessage.edit(content=ruleOutput)
+            except discord.errors.NotFound:
+                await message.channel.send("Error encountered updating rule posting. Post has likely been deleted.")
+    finally:
+        await returnConnection(conn)
