@@ -19,7 +19,6 @@
 import discord
 
 import datetime
-import asyncpg
 import math
 import re
 

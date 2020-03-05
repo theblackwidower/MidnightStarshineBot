@@ -18,8 +18,6 @@
 
 import discord
 
-import asyncpg
-
 from Constants import *
 from Utilities import *
 

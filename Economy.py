@@ -18,9 +18,6 @@
 
 import discord
 
-import datetime
-import asyncpg
-
 from Constants import *
 from Utilities import *
 
