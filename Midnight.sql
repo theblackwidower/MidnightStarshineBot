@@ -85,6 +85,20 @@ CREATE TABLE "tbl_recruitment_record" (
   CHECK("recruiter" <> "recruited_member")
 );
 
+CREATE TABLE "tbl_bumper_role_settings" (
+  "server" BIGINT NOT NULL,
+  "role" BIGINT NOT NULL UNIQUE,
+  "bump_count" INTEGER NOT NULL,
+  PRIMARY KEY("server", "bump_count")
+);
+
+CREATE TABLE "tbl_bumping_record" (
+  "server" BIGINT NOT NULL,
+  "bumper" BIGINT NOT NULL,
+  "response_id" BIGINT NOT NULL PRIMARY KEY,
+  "timebumped" TIMESTAMP NOT NULL
+);
+
 CREATE TABLE "tbl_mute_roles" (
   "server" BIGINT NOT NULL PRIMARY KEY,
   "role" BIGINT NOT NULL

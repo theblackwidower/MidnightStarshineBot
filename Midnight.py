@@ -31,6 +31,7 @@ from Utilities import *
 from RemoteAdmin import *
 from ActiveRole import *
 from PromoterRole import *
+from BumperRole import *
 from Economy import *
 from Rules import *
 from Moderation import *
@@ -123,6 +124,7 @@ async def on_member_join(member):
     await persistActive(member)
     await persistBuyablesMember(member)
     await persistPromoterRole(member)
+    await persistBumperRole(member)
     await persistMute(member)
     await persistTimeout(member)
     await recordRecruit(member)
@@ -149,6 +151,7 @@ async def on_member_update(before, after):
     await persistActive(after)
     await persistBuyablesMember(after)
     await persistPromoterRole(after)
+    await persistBumperRole(after)
 
 @client.event
 async def on_message(message):
@@ -173,6 +176,9 @@ async def on_message(message):
             await clearActive(message)
             await setupPromoterRole(message)
             await clearPromoterRole(message)
+            await setupBumperRole(message)
+            await clearBumperRole(message)
+            await scanForBumps(message)
 
             await setRule(message)
             await getRule(message)
@@ -199,6 +205,7 @@ async def on_message(message):
             await leaveServer(message)
             await listServerChannels(message)
             await getPerms(message)
+    await recordBump(message)
     await checkActive(message)
 
 @client.event
@@ -250,6 +257,10 @@ async def help(message):
                 output += "\n*Promoter Role Function:*\n"
                 output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role.\n"
                 output += "`" + COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+                output += "\n*Bumper Role Function:*\n"
+                output += "`" + COMMAND_PREFIX + SETUP_BUMPER_ROLE_COMMAND + "`: Use to setup the bumper role feature. Enter the command, followed by the role, and the number of successful bumps one would need to have done to qualify for the role.\n"
+                output += "`" + COMMAND_PREFIX + CLEAR_BUMPER_ROLE_COMMAND + "`: Use to disable the bumper role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+                output += "`" + COMMAND_PREFIX + SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
             if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
                 output += "\n*Buyable roles:*\n"
             if isManagePerms:
