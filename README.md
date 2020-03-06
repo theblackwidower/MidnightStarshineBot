@@ -46,18 +46,24 @@ $ python Midnight.py
 
 ## Working Features
 
-  * Stopping Emoji Spam
   * Echo feature (limited to access by a single user, me... can be customized)
   * Rolecall, lists all users (can be filtered by role) sorted by whatever their top role is.
-  * YAG Snipe, automatically kicks or bans a specified user, designed to deal with problems related to the bot YAGPDB.xyz.
   * Active user feature assigns custom roles based on user activity rates
   * On-the-fly rule management and lookup through bot commands.
   * Currency system which allows members to buy roles selected by server admins using a special currency set up by the same admins.
-  * Moderation features (mute, kick, and ban commands)
+  * Moderation features (mute, timeout, kick, and ban commands)
+  * Promoter Role feature assigns custom roles based on number of members recruited through invites.
+
+## Coded but disabled features
+
+  * Stopping Emoji Spam
+  * YAG Snipe, automatically kicks or bans a specified user, designed to deal with problems related to the bot YAGPDB.xyz.
+  * Rylan Snipe, automatically kicks or bans any user with a specified username or nickname, designed as a joke.
   * Ghost Ping Detector, detects when an @everyone or @here ping is deleted and immediately reports it in the channel where the act occurred. Also, in the event the report is deleted, it immediately reposts it with further notes on the event.
 
 ## Upcoming Features
 
   * Time-delayed echo
-  * Additional moderation features (warn, and banish)
+  * Additional moderation features (warn)
   * Automated welcome
+  * Bumper role feature
