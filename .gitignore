@@ -1,3 +1,4 @@
 .env
 MidnightError.log
 *.pyc
+*.csv

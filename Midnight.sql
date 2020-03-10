@@ -34,13 +34,20 @@ CREATE TABLE "tbl_paid_roles" (
   PRIMARY KEY("server", "role")
 );
 
-CREATE TABLE "tbl_transactions" (
+CREATE TABLE "tbl_account_balance" (
   "server" BIGINT NOT NULL,
   "member" BIGINT NOT NULL,
-  "date" TIMESTAMP NOT NULL,
-  "amount_in" INTEGER NOT NULL,
-  "notes" TEXT,
-  PRIMARY KEY("server", "member", "date")
+  "balance" INTEGER NOT NULL,
+  "last_payday" TIMESTAMP,
+  PRIMARY KEY("server", "member")
+);
+
+CREATE TABLE "tbl_purchase_record" (
+  "server" BIGINT NOT NULL,
+  "member" BIGINT NOT NULL,
+  "role" BIGINT NOT NULL,
+  "amount_paid" INTEGER NOT NULL,
+  PRIMARY KEY("server", "member", "role")
 );
 
 CREATE TABLE "tbl_rules" (
