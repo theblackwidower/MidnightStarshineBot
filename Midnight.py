@@ -52,6 +52,8 @@ CLEAR_DMS_COMMAND = "cleardms"
 YAG_ID = 204255221017214977
 RYLAN_NAME = 'rylan'
 
+ALTERNATE_SPEAKERS = [MIDNIGHTS_TRUE_MASTER, 643983207649509376, 662717516702941194, 459194971522727940]
+
 ghostReportRecord = dict()
 
 GHOST_PING_DETECTOR_THRESHOLD = datetime.timedelta(minutes=3)
@@ -247,8 +249,8 @@ async def help(message):
                 timeoutData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
             finally:
                 await returnConnection(conn)
-            if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
-                output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and only you, tell me to.\n"
+            if message.author.id in ALTERNATE_SPEAKERS and IS_ECHO_ENABLED:
+                output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and a select few, tell me to.\n"
             if isManagePerms:
                 output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
                 output += "\n*Active Role Function:*\n"
@@ -435,7 +437,8 @@ async def emoji_censor(message):
 async def echo(message):
     if IS_ECHO_ENABLED:
         parsing = message.content.partition(" ")
-        if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
+        if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id in ALTERNATE_SPEAKERS:
+            sentMessage = None
             if isinstance(message.channel, discord.DMChannel):
                 parsing = parsing[2].partition(" ")
                 if parsing[0].isdigit():
@@ -443,13 +446,17 @@ async def echo(message):
                     if channel is None:
                         await message.channel.send("Can't find channel.")
                     else:
-                        await channel.send(parsing[2])
+                        sentMessage = await channel.send(parsing[2])
                         await message.channel.send("Message posted.")
                 else:
                     await message.channel.send("Invalid channel ID.")
             else:
-                await message.channel.send(parsing[2])
+                sentMessage = await message.channel.send(parsing[2])
                 await message.delete()
+            if message.author.id != MIDNIGHTS_TRUE_MASTER:
+                master = client.get_user(MIDNIGHTS_TRUE_MASTER)
+                await master.create_dm()
+                await master.dm_channel.send(message.author.mention + " told me to say: \"" + sentMessage.content + "\" in: " + sentMessage.guild.name + " " + sentMessage.channel.mention)
 
 async def rolecall(message):
     parsing = message.content.partition(" ")
