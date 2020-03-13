@@ -194,13 +194,23 @@ async def setupTimeout(message):
         else:
             conn = await getConnection()
             try:
-                serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
-                if serverData[0] > 0:
+                oldChannelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
+                roleData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', message.guild.id)
+                if oldChannelData is not None:
                     await conn.execute('UPDATE tbl_timeout_channel SET channel = $1 WHERE server = $2', channel.id, message.guild.id)
                     output = "Timeout command now updated to send people to " + channel.mention
                 else:
                     await conn.execute('INSERT INTO tbl_timeout_channel (server, channel) VALUES ($1, $2)', message.guild.id, channel.id)
                     output = "Timeout command now setup to send people to " + channel.mention
+                if roleData is not None:
+                    timeoutRole = message.guild.get_role(roleData[0])
+                    if timeoutRole is not None:
+                        reason = "Updating timeout channel."
+                        if oldChannelData is not None:
+                            oldChannel = message.guild.get_channel(oldChannelData[0])
+                            if oldChannel is not None:
+                                await channelBanishForTimeout(oldChannel, timeoutRole, reason)
+                        await channelOpenForTimeout(channel, timeoutRole, reason)
                 await message.channel.send(output)
             finally:
                 await returnConnection(conn)
