@@ -400,6 +400,38 @@ async def persistTimeout(member):
     finally:
         await returnConnection(conn)
 
+async def setupChannelModRoles(channel):
+    conn = await getConnection()
+    try:
+        timeoutChannelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', channel.guild.id)
+        muteData = await conn.fetchrow('SELECT role FROM tbl_mute_roles WHERE server = $1', channel.guild.id)
+        timeoutData = await conn.fetchrow('SELECT role FROM tbl_timeout_roles WHERE server = $1', channel.guild.id)
+    finally:
+        await returnConnection(conn)
+    if muteData is not None or timeoutData is not None:
+        muteRole = None
+        timeoutRole = None
+        if muteData is not None:
+            muteRole = channel.guild.get_role(muteData[0])
+        if timeoutData is not None:
+            timeoutRole = channel.guild.get_role(timeoutData[0])
+
+        reason = "Setting up new channel for the "
+        if muteRole is not None and timeoutRole is not None:
+            reason += "Mute and Timeout functions."
+        elif muteRole is not None:
+            reason += "Mute function."
+        elif timeoutRole is not None:
+            reason += "Timeout function."
+
+        if muteRole is not None:
+            await channelMute(channel, muteRole, reason)
+        if timeoutRole is not None:
+            if channel.id == timeoutChannelData[0]:
+                await channelOpenForTimeout(channel, timeoutRole, reason)
+            else:
+                await channelBanishForTimeout(channel, timeoutRole, reason)
+
 async def kick(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + MOD_KICK_COMMAND and message.author.permissions_in(message.channel).kick_members:

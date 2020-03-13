@@ -227,6 +227,10 @@ async def on_guild_role_delete(role):
 async def on_member_ban(server, user):
     await deleteInvites(server, user)
 
+@client.event
+async def on_guild_channel_create(channel):
+    await setupChannelModRoles(channel)
+
 async def help(message):
     parsing = message.content.partition(" ")
     if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
