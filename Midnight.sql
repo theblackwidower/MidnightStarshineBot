@@ -106,6 +106,12 @@ CREATE TABLE "tbl_bumping_record" (
   "timebumped" TIMESTAMP NOT NULL
 );
 
+CREATE TABLE "tbl_bump_leaderboard_posting" (
+  "server" BIGINT PRIMARY KEY,
+  "channel" BIGINT NOT NULL UNIQUE,
+  "message" BIGINT UNIQUE
+);
+
 CREATE TABLE "tbl_mute_roles" (
   "server" BIGINT NOT NULL PRIMARY KEY,
   "role" BIGINT NOT NULL

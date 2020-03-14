@@ -24,6 +24,8 @@ from Utilities import *
 SETUP_BUMPER_ROLE_COMMAND = "setupbumperrole"
 CLEAR_BUMPER_ROLE_COMMAND = "clearbumperrole"
 SCAN_BUMP_CHANNEL_COMMAND = "scanforbumps"
+BUMP_BOARD_SET_COMMAND = "setbumpboardchannel"
+BUMP_BOARD_CLEAR_COMMAND = "clearbumpboardchannel"
 
 DISBOARD_BOT_ID = 302050872383242240
 SUCCESSFUL_DISBOARD_BUMP_MESSAGE = "Bump done :thumbsup:"
@@ -123,6 +125,7 @@ async def scanForBumps(message):
                 newString += " of which are new"
 
             await message.channel.send("Found " + str(count) + " bumps in " + channel.mention + newString + ".")
+            await updateBumpLeaderboardChannel(message)
 
 def getBumper(message):
     bumper = None
@@ -146,6 +149,7 @@ async def recordBump(message):
                 if bumper is not None:
                     await conn.execute('INSERT INTO tbl_bumping_record (server, bumper, response_id, timebumped) VALUES ($1, $2, $3, $4)', message.guild.id, bumper.id, message.id, message.created_at)
                     countData = await conn.fetchrow('SELECT COUNT(timebumped) FROM tbl_bumping_record WHERE server = $1 AND bumper = $2', message.guild.id, bumper.id)
+                    await returnConnection(conn)
                     await message.channel.send(getOrdinal(countData[0]) + " bump by " + bumper.mention + " recorded.")
                     for row in serverData:
                         role = message.guild.get_role(row[0])
@@ -155,6 +159,7 @@ async def recordBump(message):
                                 await bumper.add_roles(role, reason="Successfully bumped the server a total of " + str(countData[0]) + " times.")
                             else:
                                 break
+                    await updateBumpLeaderboardChannel(message)
         finally:
             await returnConnection(conn)
 
@@ -177,3 +182,93 @@ async def persistBumperRole(member):
                             await member.add_roles(role, reason="This user had their bumper role returned, since records show they bumped " + str(bumpCount) + " times, and they only need " + str(minBumpCount) + " to qualify.")
         finally:
             await returnConnection(conn)
+
+async def setBumpLeaderboardChannel(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + BUMP_BOARD_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        if parsing[2] == "":
+            await message.channel.send("Please specify a channel for the bump leaderboard.")
+        elif len(message.channel_mentions) == 0:
+            await message.channel.send("Please specify a valid channel.")
+        else:
+            leaderboardChannel = message.channel_mentions[0]
+            server_id = message.guild.id
+            conn = await getConnection()
+            try:
+                oldData = await conn.fetchrow('SELECT channel FROM tbl_bump_leaderboard_posting WHERE server = $1', server_id)
+                if oldData is not None and oldData[0] == leaderboardChannel.id:
+                    await message.channel.send("The leaderboard is already posted in that channel.")
+                else:
+                    leaderboardData = await conn.fetch('SELECT bumper, COUNT(response_id) FROM tbl_bumping_record WHERE server = $1 GROUP BY bumper ORDER BY COUNT(response_id) DESC', server_id)
+                    count = len(leaderboardData)
+                    leaderboardOutput = "**LEADERBOARD:**"
+                    rank = 0
+                    for i in range(count):
+                        if i == 0 or leaderboardData[i - 1][1] != leaderboardData[i][1]:
+                            rank = str(i + 1)
+                        member = message.guild.get_member(leaderboardData[i][0])
+                        if member is None:
+                            member = client.get_user(leaderboardData[i][0])
+                        if member is None:
+                            memberName = "<@" + str(leaderboardData[i][0]) + ">"
+                        else:
+                            memberName = member.display_name
+                        leaderboardOutput += "\n" + rank + ": " + memberName + " - " + str(leaderboardData[i][1]) + " bumps"
+                    leaderboardMessage = await leaderboardChannel.send(leaderboardOutput)
+                    if oldData is None:
+                        await conn.execute('INSERT INTO tbl_bump_leaderboard_posting (server, channel, message) VALUES ($1, $2, $3)', server_id, leaderboardChannel.id, leaderboardMessage.id)
+                    else:
+                        await conn.execute('UPDATE tbl_bump_leaderboard_posting SET channel = $1, message = $2 WHERE server = $3', leaderboardChannel.id, leaderboardMessage.id, server_id)
+                    await message.channel.send("Leaderboard now posted in " + leaderboardChannel.mention + ".")
+            finally:
+                await returnConnection(conn)
+
+async def clearBumpLeaderboardChannel(message):
+    parsing = message.content.partition(" ")
+    if parsing[0] == COMMAND_PREFIX + BUMP_BOARD_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+        server_id = message.guild.id
+        conn = await getConnection()
+        try:
+            channelData = await conn.fetchrow('SELECT channel, message FROM tbl_bump_leaderboard_posting WHERE server = $1', server_id)
+            if channelData is None:
+                await message.channel.send("No leaderboard postings recorded.")
+            else:
+                leaderboardChannel = message.guild.get_channel(channelData[0])
+                try:
+                    leaderboardMessage = await leaderboardChannel.fetch_message(channelData[1])
+                    await leaderboardMessage.delete()
+                except discord.errors.NotFound:
+                    pass
+                await conn.execute('DELETE FROM tbl_bump_leaderboard_posting WHERE server = $1', server_id)
+                await message.channel.send("Leaderboard posting in " + leaderboardChannel.mention + " has been deleted.")
+        finally:
+            await returnConnection(conn)
+
+async def updateBumpLeaderboardChannel(message):
+    server_id = message.guild.id
+    conn = await getConnection()
+    try:
+        messageData = await conn.fetchrow('SELECT channel, message FROM tbl_bump_leaderboard_posting WHERE server = $1', server_id)
+        if messageData is not None:
+            try:
+                leaderboardMessage = await message.guild.get_channel(messageData[0]).fetch_message(messageData[1])
+                leaderboardData = await conn.fetch('SELECT bumper, COUNT(response_id) FROM tbl_bumping_record WHERE server = $1 GROUP BY bumper ORDER BY COUNT(response_id) DESC', server_id)
+                count = len(leaderboardData)
+                leaderboardOutput = "**LEADERBOARD:**"
+                rank = 0
+                for i in range(count):
+                    if i == 0 or leaderboardData[i - 1][1] != leaderboardData[i][1]:
+                        rank = str(i + 1)
+                    member = message.guild.get_member(leaderboardData[i][0])
+                    if member is None:
+                        member = client.get_user(leaderboardData[i][0])
+                    if member is None:
+                        memberName = "<@" + str(leaderboardData[i][0]) + ">"
+                    else:
+                        memberName = member.display_name
+                    leaderboardOutput += "\n" + rank + ": " + memberName + " - " + str(leaderboardData[i][1]) + " bumps"
+                await leaderboardMessage.edit(content=leaderboardOutput)
+            except discord.errors.NotFound:
+                await message.channel.send("Error encountered updating leaderboard posting. Post has likely been deleted.")
+    finally:
+        await returnConnection(conn)

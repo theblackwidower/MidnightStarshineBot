@@ -181,6 +181,8 @@ async def on_message(message):
             await setupBumperRole(message)
             await clearBumperRole(message)
             await scanForBumps(message)
+            await setBumpLeaderboardChannel(message)
+            await clearBumpLeaderboardChannel(message)
 
             await setRule(message)
             await getRule(message)
@@ -267,6 +269,8 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + SETUP_BUMPER_ROLE_COMMAND + "`: Use to setup the bumper role feature. Enter the command, followed by the role, and the number of successful bumps one would need to have done to qualify for the role.\n"
                 output += "`" + COMMAND_PREFIX + CLEAR_BUMPER_ROLE_COMMAND + "`: Use to disable the bumper role feature. If you want to reenable it, you'll have to run the setup command again.\n"
                 output += "`" + COMMAND_PREFIX + SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
+                output += "`" + COMMAND_PREFIX + BUMP_BOARD_SET_COMMAND + "`: Will set which channel to post the bump leaderboard in. This post will be continually updated as bumps are made.\n"
+                output += "`" + COMMAND_PREFIX + BUMP_BOARD_CLEAR_COMMAND + "`: Will delete the official posting of the bump leaderboard.\n"
             if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
                 output += "\n*Buyable roles:*\n"
             if isManagePerms:
