@@ -122,3 +122,19 @@ def timeDeltaToString(timeDelta):
         raise Exception("Invalid number of totalTimeParts: " + str(len(totalTimeParts)))
 
     return totalTimeString
+
+def getOrdinal(number):
+    output = str(math.floor(number))
+    digitCount = len(output)
+    if digitCount > 1 and output[digitCount - 2] == "1":
+        output += "th"
+    elif output[digitCount - 1] == "1":
+        output += "st"
+    elif output[digitCount - 1] == "2":
+        output += "nd"
+    elif output[digitCount - 1] == "3":
+        output += "rd"
+    else:
+        output += "th"
+
+    return output

@@ -145,11 +145,12 @@ async def recordBump(message):
                 bumper = getBumper(message)
                 if bumper is not None:
                     await conn.execute('INSERT INTO tbl_bumping_record (server, bumper, response_id, timebumped) VALUES ($1, $2, $3, $4)', message.guild.id, bumper.id, message.id, message.created_at)
+                    countData = await conn.fetchrow('SELECT COUNT(timebumped) FROM tbl_bumping_record WHERE server = $1 AND bumper = $2', message.guild.id, bumper.id)
+                    await message.channel.send(getOrdinal(countData[0]) + " bump by " + bumper.mention + " recorded.")
                     for row in serverData:
                         role = message.guild.get_role(row[0])
                         bumpCount = row[1]
                         if bumper.roles.count(role) == 0:
-                            countData = await conn.fetchrow('SELECT COUNT(timebumped) FROM tbl_bumping_record WHERE server = $1 AND bumper = $2', message.guild.id, bumper.id)
                             if countData[0] >= bumpCount:
                                 await bumper.add_roles(role, reason="Successfully bumped the server a total of " + str(countData[0]) + " times.")
                             else:
