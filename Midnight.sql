@@ -112,6 +112,19 @@ CREATE TABLE "tbl_bump_leaderboard_posting" (
   "message" BIGINT UNIQUE
 );
 
+CREATE TABLE "tbl_role_groups" (
+  "server" BIGINT NOT NULL,
+  "group_name" TEXT NOT NULL,
+  PRIMARY KEY("server", "group_name")
+);
+
+CREATE TABLE "tbl_controlled_roles" (
+  "server" BIGINT NOT NULL,
+  "group_name" TEXT NOT NULL,
+  "role" BIGINT PRIMARY KEY,
+  FOREIGN KEY ("server", "group_name") REFERENCES tbl_role_groups
+);
+
 CREATE TABLE "tbl_mute_roles" (
   "server" BIGINT NOT NULL PRIMARY KEY,
   "role" BIGINT NOT NULL

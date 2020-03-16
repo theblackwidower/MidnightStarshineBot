@@ -35,6 +35,7 @@ from BumperRole import *
 from Economy import *
 from Rules import *
 from Moderation import *
+from RoleControl import *
 
 IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
@@ -154,6 +155,7 @@ async def on_member_update(before, after):
     await persistBuyablesMember(after)
     await persistPromoterRole(after)
     await persistBumperRole(after)
+    await checkRoleControl(before, after)
 
 @client.event
 async def on_message(message):
@@ -183,6 +185,11 @@ async def on_message(message):
             await scanForBumps(message)
             await setBumpLeaderboardChannel(message)
             await clearBumpLeaderboardChannel(message)
+
+            await createRoleGroup(message)
+            await deleteRoleGroup(message)
+            await addToRoleGroup(message)
+            await removeFromRoleGroup(message)
 
             await setRule(message)
             await getRule(message)
@@ -271,6 +278,11 @@ async def help(message):
                 output += "`" + COMMAND_PREFIX + SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
                 output += "`" + COMMAND_PREFIX + BUMP_BOARD_SET_COMMAND + "`: Will set which channel to post the bump leaderboard in. This post will be continually updated as bumps are made.\n"
                 output += "`" + COMMAND_PREFIX + BUMP_BOARD_CLEAR_COMMAND + "`: Will delete the official posting of the bump leaderboard.\n"
+                output += "\n*Role restrictions:*\n"
+                output += "`" + COMMAND_PREFIX + CREATE_ROLE_GROUP_COMMAND + "`: Creates a new role group. This will restrict all members to select only one role from each group.\n"
+                output += "`" + COMMAND_PREFIX + DELETE_ROLE_GROUP_COMMAND + "`: Deletes an existant role group.\n"
+                output += "`" + COMMAND_PREFIX + ADD_TO_ROLE_GROUP_COMMAND + "`: Adds a role to a group. Provide the group name, and then the role.\n"
+                output += "`" + COMMAND_PREFIX + REMOVE_FROM_ROLE_GROUP_COMMAND + "`: Removes a role from a group. Provide the group name, and then the role.\n"
             if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
                 output += "\n*Buyable roles:*\n"
             if isManagePerms:
