@@ -36,6 +36,7 @@ from Economy import *
 from Rules import *
 from Moderation import *
 from RoleControl import *
+from CustomizedCode import *
 
 IS_EMOJI_CENSOR_ENABLED = False
 IS_ECHO_ENABLED = True
@@ -156,6 +157,7 @@ async def on_member_update(before, after):
     await persistPromoterRole(after)
     await persistBumperRole(after)
     await checkRoleControl(before, after)
+    await ponyVersePersistElementRole(after)
 
 @client.event
 async def on_message(message):
