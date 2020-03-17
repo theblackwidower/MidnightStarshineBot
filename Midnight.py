@@ -161,61 +161,115 @@ async def on_member_update(before, after):
 async def on_message(message):
     await emoji_censor(message)
     if message.content.startswith(COMMAND_PREFIX):
-        await help(message)
-        await sourceCode(message)
-        await sanctuaryInvite(message)
-        await echo(message)
-        if isinstance(message.channel, discord.TextChannel):
-            await rolecall(message)
-            await setupPayday(message)
-            await clearPayday(message)
-            await payday(message)
-            await balance(message)
-            await setupRole(message)
-            await removeRole(message)
-            await roleMenu(message)
-            await buyRole(message)
-            await refundRole(message)
-            await setupActive(message)
-            await clearActive(message)
-            await setupPromoterRole(message)
-            await clearPromoterRole(message)
-            await setupBumperRole(message)
-            await clearBumperRole(message)
-            await scanForBumps(message)
-            await setBumpLeaderboardChannel(message)
-            await clearBumpLeaderboardChannel(message)
+        parsing = message.content.partition(" ")
+        command = parsing[0][len(COMMAND_PREFIX):]
+        if command == HELP_COMMAND:
+            await help(message)
+        elif command == SOURCE_CODE_COMMAND:
+            await sourceCode(message)
+        elif command == SANCTUARY_COMMAND:
+            await sanctuaryInvite(message)
+        elif command == ECHO_COMMAND:
+            await echo(message)
+        elif isinstance(message.channel, discord.TextChannel):
+            if command == ROLECALL_COMMAND:
+                await rolecall(message)
 
-            await createRoleGroup(message)
-            await deleteRoleGroup(message)
-            await addToRoleGroup(message)
-            await removeFromRoleGroup(message)
+            elif command == PAYDAY_SETUP_COMMAND:
+                await setupPayday(message)
+            elif command == PAYDAY_CLEAR_COMMAND:
+                await clearPayday(message)
+            elif command == PAYDAY_COMMAND:
+                await payday(message)
+            elif command == BALANCE_COMMAND:
+                await balance(message)
+            elif command == BUY_ROLE_SETUP_COMMAND:
+                await setupRole(message)
+            elif command == BUY_ROLE_REMOVE_COMMAND:
+                await removeRole(message)
+            elif command == LIST_ROLES_COMMAND:
+                await roleMenu(message)
+            elif command == BUY_ROLE_COMMAND:
+                await buyRole(message)
+            elif command == REFUND_ROLE_COMMAND:
+                await refundRole(message)
 
-            await setRule(message)
-            await getRule(message)
-            await editRule(message)
-            await deleteRule(message)
-            await getAllRules(message)
-            await getRuleBackup(message)
-            await setRuleChannel(message)
-            await clearRuleChannel(message)
+            elif command == SETUP_ACTIVE_ROLE_COMMAND:
+                await setupActive(message)
+            elif command == CLEAR_ACTIVE_ROLE_COMMAND:
+                await clearActive(message)
+            elif command == SETUP_PROMOTER_ROLE_COMMAND:
+                await setupPromoterRole(message)
+            elif command == CLEAR_PROMOTER_ROLE_COMMAND:
+                await clearPromoterRole(message)
+            elif command == SETUP_BUMPER_ROLE_COMMAND:
+                await setupBumperRole(message)
+            elif command == CLEAR_BUMPER_ROLE_COMMAND:
+                await clearBumperRole(message)
+            elif command == SCAN_BUMP_CHANNEL_COMMAND:
+                await scanForBumps(message)
+            elif command == BUMP_BOARD_SET_COMMAND:
+                await setBumpLeaderboardChannel(message)
+            elif command == BUMP_BOARD_CLEAR_COMMAND:
+                await clearBumpLeaderboardChannel(message)
 
-            await setupMuteRole(message)
-            await mute(message)
-            await unmute(message)
-            await setupTimeout(message)
-            await setupTimeoutRole(message)
-            await timeout(message)
-            await timein(message)
-            await kick(message)
-            await ban(message)
-            await banDelete(message)
+            elif command == CREATE_ROLE_GROUP_COMMAND:
+                await createRoleGroup(message)
+            elif command == DELETE_ROLE_GROUP_COMMAND:
+                await deleteRoleGroup(message)
+            elif command == ADD_TO_ROLE_GROUP_COMMAND:
+                await addToRoleGroup(message)
+            elif command == REMOVE_FROM_ROLE_GROUP_COMMAND:
+                await removeFromRoleGroup(message)
+
+            elif command == RULE_SET_COMMAND:
+                await setRule(message)
+            elif command == RULE_GET_COMMAND:
+                await getRule(message)
+            elif command == RULE_EDIT_COMMAND:
+                await editRule(message)
+            elif command == RULE_DELETE_COMMAND:
+                await deleteRule(message)
+            elif command == RULE_GET_ALL_COMMAND:
+                await getAllRules(message)
+            elif command == RULE_GET_BACKUP_COMMAND:
+                await getRuleBackup(message)
+            elif command == RULE_CHANNEL_SET_COMMAND:
+                await setRuleChannel(message)
+            elif command == RULE_CHANNEL_CLEAR_COMMAND:
+                await clearRuleChannel(message)
+
+            elif command == MOD_MUTE_ROLE_SETUP_COMMAND:
+                await setupMuteRole(message)
+            elif command == MOD_MUTE_COMMAND:
+                await mute(message)
+            elif command == MOD_UNMUTE_COMMAND:
+                await unmute(message)
+            elif command == MOD_TIMEOUT_SETUP_COMMAND:
+                await setupTimeout(message)
+            elif command == MOD_TIMEOUT_ROLE_SETUP_COMMAND:
+                await setupTimeoutRole(message)
+            elif command == MOD_TIMEOUT_COMMAND:
+                await timeout(message)
+            elif command == MOD_TIMEIN_COMMAND:
+                await timein(message)
+            elif command == MOD_KICK_COMMAND:
+                await kick(message)
+            elif command == MOD_BAN_SIMPLE_COMMAND:
+                await ban(message)
+            elif command == MOD_BAN_DELETE_COMMAND:
+                await banDelete(message)
         elif isinstance(message.channel, discord.DMChannel):
-            await clearDms(message)
-            await listServers(message)
-            await leaveServer(message)
-            await listServerChannels(message)
-            await getPerms(message)
+            if command == CLEAR_DMS_COMMAND:
+                await clearDms(message)
+            elif command == REMOTE_ADMIN_SERVER_LIST_COMMAND:
+                await listServers(message)
+            elif command == REMOTE_ADMIN_SERVER_REMOVE_COMMAND:
+                await leaveServer(message)
+            elif command == REMOTE_ADMIN_CHANNEL_LIST_COMMAND:
+                await listServerChannels(message)
+            elif command == REMOTE_ADMIN_GET_PERMS_COMMAND:
+                await getPerms(message)
     await recordBump(message)
     await checkActive(message)
 
