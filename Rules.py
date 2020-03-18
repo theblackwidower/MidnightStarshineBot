@@ -30,35 +30,32 @@ RULE_GET_BACKUP_COMMAND = "getrulebackup"
 RULE_CHANNEL_SET_COMMAND = "setrulechannel"
 RULE_CHANNEL_CLEAR_COMMAND = "clearrulechannel"
 
-async def setRule(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+async def setRule(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         conn = await getConnection()
         try:
-            await conn.execute('INSERT INTO tbl_rules (server, content) VALUES ($1, $2)', server_id, parsing[2])
+            await conn.execute('INSERT INTO tbl_rules (server, content) VALUES ($1, $2)', server_id, commandArgs)
             ruleData = await conn.fetchrow('SELECT COUNT(id) FROM tbl_rules WHERE server = $1', server_id)
-            await message.channel.send("Rule #" + str(ruleData[0]) + " has been set to: " + parsing[2])
+            await message.channel.send("Rule #" + str(ruleData[0]) + " has been set to: " + commandArgs)
         finally:
             await returnConnection(conn)
         await updateRuleChannel(message)
 
-async def getRule(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_GET_COMMAND:
-        if parsing[2].isdigit():
-            conn = await getConnection()
-            try:
-                ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
-            finally:
-                await returnConnection(conn)
-            rule_num = int(parsing[2])
-            if rule_num <= len(ruleData) and rule_num > 0:
-                await message.channel.send("Rule #" + parsing[2] + ": " + ruleData[rule_num - 1][0])
-            else:
-                await message.channel.send("There is no rule #" + parsing[2])
+async def getRule(message, commandArgs):
+    if commandArgs.isdigit():
+        conn = await getConnection()
+        try:
+            ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
+        finally:
+            await returnConnection(conn)
+        rule_num = int(commandArgs)
+        if rule_num <= len(ruleData) and rule_num > 0:
+            await message.channel.send("Rule #" + commandArgs + ": " + ruleData[rule_num - 1][0])
         else:
-            await message.channel.send("Please provide a valid number.")
+            await message.channel.send("There is no rule #" + commandArgs)
+    else:
+        await message.channel.send("Please provide a valid number.")
 
 
 async def getRuleId(server_id, rule_num):
@@ -73,10 +70,9 @@ async def getRuleId(server_id, rule_num):
         returnValue = None
     return returnValue
 
-async def editRule(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_EDIT_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].partition(" ")
+async def editRule(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.partition(" ")
         if parsing[0].isdigit():
             rule_id = await getRuleId(message.guild.id, int(parsing[0]))
             if rule_id is not None:
@@ -92,46 +88,42 @@ async def editRule(message):
         else:
             await message.channel.send("Please provide a valid number.")
 
-async def deleteRule(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_DELETE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        if parsing[2].isdigit():
-            rule_id = await getRuleId(message.guild.id, int(parsing[2]))
+async def deleteRule(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        if commandArgs.isdigit():
+            rule_id = await getRuleId(message.guild.id, int(commandArgs))
             if rule_id is not None:
                 conn = await getConnection()
                 try:
                     await conn.execute('DELETE FROM tbl_rules WHERE id = $1', rule_id)
-                    await message.channel.send("Rule #" + parsing[2] + " has been deleted")
+                    await message.channel.send("Rule #" + commandArgs + " has been deleted")
                 finally:
                     await returnConnection(conn)
                 await updateRuleChannel(message)
             else:
-                await message.channel.send("There is no rule #" + parsing[2])
+                await message.channel.send("There is no rule #" + commandArgs)
         else:
             await message.channel.send("Please provide a valid number.")
 
 async def getAllRules(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_GET_ALL_COMMAND:
-        conn = await getConnection()
-        try:
-            ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
-        finally:
-            await returnConnection(conn)
-        count = len(ruleData)
-        if count > 0:
-            output = "**SERVER RULES** for " + message.guild.name + ":"
-            for i in range(count):
-                # TODO: add some kind of length control
-                output += "\nRule #" + str(i + 1) + ": " + ruleData[i][0]
-            await message.author.create_dm()
-            await message.author.dm_channel.send(output)
+    conn = await getConnection()
+    try:
+        ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
+    finally:
+        await returnConnection(conn)
+    count = len(ruleData)
+    if count > 0:
+        output = "**SERVER RULES** for " + message.guild.name + ":"
+        for i in range(count):
+            # TODO: add some kind of length control
+            output += "\nRule #" + str(i + 1) + ": " + ruleData[i][0]
+        await message.author.create_dm()
+        await message.author.dm_channel.send(output)
 
-            await message.channel.send(message.author.mention + "! A copy of the complete server rules have been sent to your DMs.")
+        await message.channel.send(message.author.mention + "! A copy of the complete server rules have been sent to your DMs.")
 
 async def getRuleBackup(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         conn = await getConnection()
         try:
             ruleData = await conn.fetch('SELECT content FROM tbl_rules WHERE server = $1 ORDER BY id', message.guild.id)
@@ -149,10 +141,9 @@ async def getRuleBackup(message):
 
             await message.channel.send(message.author.mention + "! A backup of the complete server rules has been sent to your DMs.")
 
-async def setRuleChannel(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        if parsing[2] == "":
+async def setRuleChannel(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        if commandArgs == "":
             await message.channel.send("Please specify a rule channel.")
         elif len(message.channel_mentions) == 0:
             await message.channel.send("Please specify a valid rule channel.")
@@ -181,8 +172,7 @@ async def setRuleChannel(message):
                 await returnConnection(conn)
 
 async def clearRuleChannel(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         conn = await getConnection()
         try:

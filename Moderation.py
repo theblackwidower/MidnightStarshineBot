@@ -30,10 +30,9 @@ MOD_KICK_COMMAND = "kick"
 MOD_BAN_SIMPLE_COMMAND = "ban"
 MOD_BAN_DELETE_COMMAND = "spamban"
 
-async def setupMuteRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_MUTE_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        role = parseRole(message.guild, parsing[2])
+async def setupMuteRole(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        role = parseRole(message.guild, commandArgs)
         if role is None:
             await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
         else:
@@ -55,10 +54,9 @@ async def setupMuteRole(message):
             await allChannelMute(role, reason)
             await message.channel.send(output)
 
-async def mute(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_MUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        parsing = parsing[2].strip().partition(" ")
+async def mute(message, commandArgs):
+    if message.author.permissions_in(message.channel).kick_members:
+        parsing = commandArgs.partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -119,10 +117,9 @@ async def channelMute(channel, subject, reason):
 
             await channel.set_permissions(subject, overwrite=overwrite, reason=reason)
 
-async def unmute(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_UNMUTE_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        parsing = parsing[2].strip().partition(" ")
+async def unmute(message, commandArgs):
+    if message.author.permissions_in(message.channel).kick_members:
+        parsing = commandArgs.partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -185,10 +182,9 @@ async def persistMute(member):
     finally:
         await returnConnection(conn)
 
-async def setupTimeout(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        channel = parseChannel(message.guild, parsing[2])
+async def setupTimeout(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        channel = parseChannel(message.guild, commandArgs)
         if channel is None:
             await message.channel.send("Could not find specified channel.")
         else:
@@ -215,10 +211,9 @@ async def setupTimeout(message):
             finally:
                 await returnConnection(conn)
 
-async def setupTimeoutRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_TIMEOUT_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        role = parseRole(message.guild, parsing[2])
+async def setupTimeoutRole(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        role = parseRole(message.guild, commandArgs)
         if role is None:
             await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
         else:
@@ -249,14 +244,13 @@ async def setupTimeoutRole(message):
             finally:
                 await returnConnection(conn)
 
-async def timeout(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_TIMEOUT_COMMAND and message.author.permissions_in(message.channel).kick_members:
+async def timeout(message, commandArgs):
+    if message.author.permissions_in(message.channel).kick_members:
         conn = await getConnection()
         try:
             channelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
             if channelData is not None:
-                member = parseMember(message.guild, parsing[2])
+                member = parseMember(message.guild, commandArgs)
                 timeoutChannel = message.guild.get_channel(channelData[0])
                 if timeoutChannel is None:
                     await message.channel.send("Cannot find the designated timeout channel. Was it deleted somehow?")
@@ -324,14 +318,13 @@ async def channelOpenForTimeout(channel, subject, reason):
 
             await channel.set_permissions(subject, overwrite=overwrite, reason=reason)
 
-async def timein(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_TIMEIN_COMMAND and message.author.permissions_in(message.channel).kick_members:
+async def timein(message, commandArgs):
+    if message.author.permissions_in(message.channel).kick_members:
         conn = await getConnection()
         try:
             channelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
             if channelData is not None:
-                member = parseMember(message.guild, parsing[2])
+                member = parseMember(message.guild, commandArgs)
                 timeoutChannel = message.guild.get_channel(channelData[0])
                 if member is None:
                     await message.channel.send("Member not found.")
@@ -432,10 +425,9 @@ async def setupChannelModRoles(channel):
             else:
                 await channelBanishForTimeout(channel, timeoutRole, reason)
 
-async def kick(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_KICK_COMMAND and message.author.permissions_in(message.channel).kick_members:
-        parsing = parsing[2].strip().partition(" ")
+async def kick(message, commandArgs):
+    if message.author.permissions_in(message.channel).kick_members:
+        parsing = commandArgs.partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -452,10 +444,9 @@ async def kick(message):
             await member.kick(reason=reason_record)
             await message.channel.send("Member " + member.mention + " kicked" + reason_message)
 
-async def ban(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND and message.author.permissions_in(message.channel).ban_members:
-        parsing = parsing[2].strip().partition(" ")
+async def ban(message, commandArgs):
+    if message.author.permissions_in(message.channel).ban_members:
+        parsing = commandArgs.partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")
@@ -472,10 +463,9 @@ async def ban(message):
             await member.ban(reason=reason_record, delete_message_days=0)
             await message.channel.send("Member " + member.mention + " banned" + reason_message)
 
-async def banDelete(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND and message.author.permissions_in(message.channel).ban_members and message.author.permissions_in(message.channel).manage_messages:
-        parsing = parsing[2].strip().partition(" ")
+async def banDelete(message, commandArgs):
+    if message.author.permissions_in(message.channel).ban_members and message.author.permissions_in(message.channel).manage_messages:
+        parsing = commandArgs.partition(" ")
         member = parseMember(message.guild, parsing[0])
         if member is None:
             await message.channel.send("Member not found.")

@@ -28,10 +28,9 @@ DELETE_ROLE_GROUP_COMMAND = "deleterolegroup"
 ADD_TO_ROLE_GROUP_COMMAND = "addtogroup"
 REMOVE_FROM_ROLE_GROUP_COMMAND = "removefromgroup"
 
-async def createRoleGroup(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + CREATE_ROLE_GROUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        name = parsing[2]
+async def createRoleGroup(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        name = commandArgs
         if len(name) < MIN_GROUP_NAME_LENGTH:
             await message.channel.send("Group name must be at least " + str(MIN_GROUP_NAME_LENGTH) + " characters long.")
         elif name.count(" "):
@@ -48,10 +47,9 @@ async def createRoleGroup(message):
             finally:
                 await returnConnection(conn)
 
-async def deleteRoleGroup(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + DELETE_ROLE_GROUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        name = parsing[2]
+async def deleteRoleGroup(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        name = commandArgs
         conn = await getConnection()
         try:
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_role_groups WHERE server = $1 AND group_name = $2', message.guild.id, name)
@@ -63,10 +61,9 @@ async def deleteRoleGroup(message):
         finally:
             await returnConnection(conn)
 
-async def addToRoleGroup(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + ADD_TO_ROLE_GROUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].partition(" ")
+async def addToRoleGroup(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.partition(" ")
         groupName = parsing[0]
         roleString = parsing[2]
         if roleString == "" or groupName == "":
@@ -90,10 +87,9 @@ async def addToRoleGroup(message):
                 finally:
                     await returnConnection(conn)
 
-async def removeFromRoleGroup(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + REMOVE_FROM_ROLE_GROUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].partition(" ")
+async def removeFromRoleGroup(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.partition(" ")
         groupName = parsing[0]
         roleString = parsing[2]
         if roleString == "" or groupName == "":

@@ -51,10 +51,9 @@ def recordTransaction(server, member, date, amount_in, notes, balance):
             record.write("date,amount in,notes,balance\n")
         record.write(date.isoformat() + "," + str(amount_in) + "," + notes + "," + str(balance) + "\n")
 
-async def setupPayday(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + PAYDAY_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].partition(" ")
+async def setupPayday(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.partition(" ")
         amountString = parsing[0]
         parsing = parsing[2].rpartition(" ")
         currencyName = parsing[0]
@@ -90,8 +89,7 @@ async def setupPayday(message):
                     await returnConnection(conn)
 
 async def clearPayday(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         conn = await getConnection()
         try:
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = $1', message.guild.id)
@@ -104,70 +102,65 @@ async def clearPayday(message):
             await returnConnection(conn)
 
 async def payday(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + PAYDAY_COMMAND:
-        conn = await getConnection()
-        try:
-            serverData = await conn.fetchrow('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = $1', message.guild.id)
-            currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
-            if serverData is not None and currencyData is not None:
-                paydayAmount = serverData[0]
-                currencyName = currencyData[0]
-                cooldown = serverData[1]
-                accountData = await conn.fetchrow('SELECT balance, last_payday FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
+    conn = await getConnection()
+    try:
+        serverData = await conn.fetchrow('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = $1', message.guild.id)
+        currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
+        if serverData is not None and currencyData is not None:
+            paydayAmount = serverData[0]
+            currencyName = currencyData[0]
+            cooldown = serverData[1]
+            accountData = await conn.fetchrow('SELECT balance, last_payday FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
+
+            if accountData is None:
+                currentFunds = 0
+                lastPayday = None
+            else:
+                currentFunds = accountData[0]
+                lastPayday = accountData[1]
+
+            currentFunds += paydayAmount
+            currentTime = message.created_at
+            if lastPayday is None or lastPayday + cooldown < currentTime:
+                recordTransaction(message.guild, message.author, currentTime, paydayAmount, TRANSACTION_PAYDAY, currentFunds)
 
                 if accountData is None:
-                    currentFunds = 0
-                    lastPayday = None
+                    await conn.execute('INSERT INTO tbl_account_balance (server, member, balance, last_payday) VALUES ($1, $2, $3, $4)', message.guild.id, message.author.id, currentFunds, currentTime)
+                    await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " " + currencyName + " in your account.")
                 else:
-                    currentFunds = accountData[0]
-                    lastPayday = accountData[1]
-
-                currentFunds += paydayAmount
-                currentTime = message.created_at
-                if lastPayday is None or lastPayday + cooldown < currentTime:
-                    recordTransaction(message.guild, message.author, currentTime, paydayAmount, TRANSACTION_PAYDAY, currentFunds)
-
-                    if accountData is None:
-                        await conn.execute('INSERT INTO tbl_account_balance (server, member, balance, last_payday) VALUES ($1, $2, $3, $4)', message.guild.id, message.author.id, currentFunds, currentTime)
-                        await message.channel.send("Welcome, " + message.author.mention + "! We've started you off with " + str(currentFunds) + " " + currencyName + " in your account.")
-                    else:
-                        await conn.execute('UPDATE tbl_account_balance SET balance = $1, last_payday = $2 WHERE server = $3 AND member = $4', currentFunds, currentTime, message.guild.id, message.author.id)
-                        await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " " + currencyName + " in your account.")
-                else:
-                    timeLeft = lastPayday + cooldown - currentTime
-                    await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
-        finally:
-            await returnConnection(conn)
+                    await conn.execute('UPDATE tbl_account_balance SET balance = $1, last_payday = $2 WHERE server = $3 AND member = $4', currentFunds, currentTime, message.guild.id, message.author.id)
+                    await message.channel.send(message.author.mention + "! You now have " + str(currentFunds) + " " + currencyName + " in your account.")
+            else:
+                timeLeft = lastPayday + cooldown - currentTime
+                await message.channel.send(message.author.mention + "! Please wait another " + timeDeltaToString(timeLeft) + " before attempting another payday.")
+    finally:
+        await returnConnection(conn)
 
 async def balance(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + BALANCE_COMMAND:
+    conn = await getConnection()
+    try:
+        currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
+        if currencyData is not None:
+            currencyName = currencyData[0]
+            fundsData = await conn.fetchrow('SELECT balance FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
+
+            if fundsData is None:
+                currentFunds = 0
+            else:
+                currentFunds = fundsData[0]
+
+            await message.channel.send(message.author.mention + "! You have " + str(currentFunds) + " " + currencyName + " in your account.")
+    finally:
+        await returnConnection(conn)
+
+async def setupRole(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_roles:
         conn = await getConnection()
         try:
             currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
             if currencyData is not None:
                 currencyName = currencyData[0]
-                fundsData = await conn.fetchrow('SELECT balance FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
-
-                if fundsData is None:
-                    currentFunds = 0
-                else:
-                    currentFunds = fundsData[0]
-
-                await message.channel.send(message.author.mention + "! You have " + str(currentFunds) + " " + currencyName + " in your account.")
-        finally:
-            await returnConnection(conn)
-
-async def setupRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND and message.author.permissions_in(message.channel).manage_roles:
-        conn = await getConnection()
-        try:
-            currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
-            if currencyData is not None:
-                currencyName = currencyData[0]
-                parsing = parsing[2].rpartition(" ")
+                parsing = commandArgs.rpartition(" ")
                 roleString = parsing[0]
                 costString = parsing[2]
                 if roleString == "" or costString == "":
@@ -192,10 +185,9 @@ async def setupRole(message):
         finally:
             await returnConnection(conn)
 
-async def removeRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + BUY_ROLE_REMOVE_COMMAND and message.author.permissions_in(message.channel).manage_roles:
-        role = parseRole(message.guild, parsing[2])
+async def removeRole(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_roles:
+        role = parseRole(message.guild, commandArgs)
         if role is None:
             await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
         else:
@@ -220,93 +212,87 @@ async def roleDeleted(role):
         await returnConnection(conn)
 
 async def roleMenu(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + LIST_ROLES_COMMAND:
+    conn = await getConnection()
+    try:
+        currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
+        allData = await conn.fetch('SELECT role, cost FROM tbl_paid_roles WHERE server = $1 ORDER BY cost', message.guild.id)
+        if currencyData is not None and len(allData) > 0:
+            output = "**Available Roles**\n"
+            for roleData in allData:
+                role = message.guild.get_role(roleData[0])
+                if role is None:
+                    await conn.execute('DELETE FROM tbl_paid_roles WHERE server = $1 AND role = $2', message.guild.id, roleData[0])
+                else:
+                    output += role.name + ": " + str(roleData[1]) + " " + currencyData[0] + "\n"
+    finally:
+        await returnConnection(conn)
+    await message.channel.send(output)
+
+async def buyRole(message, commandArgs):
+    role = parseRole(message.guild, commandArgs)
+    if role is None:
+        await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+    elif message.author.roles.count(role) > 0:
+        await message.channel.send("You already have this role.")
+    else:
         conn = await getConnection()
         try:
             currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
-            allData = await conn.fetch('SELECT role, cost FROM tbl_paid_roles WHERE server = $1 ORDER BY cost', message.guild.id)
-            if currencyData is not None and len(allData) > 0:
-                output = "**Available Roles**\n"
-                for roleData in allData:
-                    role = message.guild.get_role(roleData[0])
-                    if role is None:
-                        await conn.execute('DELETE FROM tbl_paid_roles WHERE server = $1 AND role = $2', message.guild.id, roleData[0])
+            if currencyData is not None:
+                currencyName = currencyData[0]
+                costData = await conn.fetchrow('SELECT cost FROM tbl_paid_roles WHERE server = $1 AND role = $2', message.guild.id, role.id)
+                accountData = await conn.fetchrow('SELECT balance FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
+                purchaseData = await conn.fetchrow('SELECT amount_paid FROM tbl_purchase_record WHERE server = $1 AND member = $2 AND role = $3', message.guild.id, message.author.id, role.id)
+                if costData is None:
+                    await message.channel.send("Role not available for purchase.")
+                elif purchaseData is not None:
+                    await message.channel.send("You already bought this role.")
+                elif accountData is None:
+                    await message.channel.send("Can't find any account data. Please run the payday command (`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`) at least once so we can give you some " + currencyName + ".")
+                else:
+                    roleCost = costData[0]
+                    memberFunds = accountData[0]
+                    if memberFunds < roleCost:
+                        await message.channel.send("The '" + role.name + "' role costs " + str(roleCost) + " " + currencyName + ", and you only have " + str(memberFunds) + " " + currencyName + " in your account.")
                     else:
-                        output += role.name + ": " + str(roleData[1]) + " " + currencyData[0] + "\n"
+                        memberFunds -= roleCost
+                        await conn.execute('INSERT INTO tbl_purchase_record (server, member, role, amount_paid) VALUES ($1, $2, $3, $4)', message.guild.id, message.author.id, role.id, roleCost)
+                        await conn.execute('UPDATE tbl_account_balance SET balance = $1 WHERE server = $2 AND member = $3', memberFunds, message.guild.id, message.author.id)
+                        recordTransaction(message.guild, message.author, message.created_at, -roleCost, TRANSACTION_BUY_ROLE + ": " + role.name + "(" + str(role.id) + ")", memberFunds)
+                        await message.author.add_roles(role, reason="Purchased the role for " + str(roleCost) + " " + currencyName + ".")
+                        await message.channel.send("Thank you for purchasing the '" + role.name + "' role for " + str(roleCost) + " " + currencyName + ". Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
         finally:
             await returnConnection(conn)
-        await message.channel.send(output)
 
-async def buyRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + BUY_ROLE_COMMAND:
-        role = parseRole(message.guild, parsing[2])
-        if role is None:
-            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
-        elif message.author.roles.count(role) > 0:
-            await message.channel.send("You already have this role.")
-        else:
-            conn = await getConnection()
-            try:
-                currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
-                if currencyData is not None:
-                    currencyName = currencyData[0]
-                    costData = await conn.fetchrow('SELECT cost FROM tbl_paid_roles WHERE server = $1 AND role = $2', message.guild.id, role.id)
+async def refundRole(message, commandArgs):
+    role = parseRole(message.guild, commandArgs)
+    if role is None:
+        await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
+    elif message.author.roles.count(role) == 0:
+        await message.channel.send("You don't have this role.")
+    else:
+        conn = await getConnection()
+        try:
+            currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
+            if currencyData is not None:
+                currencyName = currencyData[0]
+                costData = await conn.fetchrow('SELECT amount_paid FROM tbl_purchase_record WHERE server = $1 AND member = $2 AND role = $3', message.guild.id, message.author.id, role.id)
+                if costData is None:
+                    await message.channel.send("Role cannot be refunded.")
+                else:
+                    roleCost = costData[0]
                     accountData = await conn.fetchrow('SELECT balance FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
-                    purchaseData = await conn.fetchrow('SELECT amount_paid FROM tbl_purchase_record WHERE server = $1 AND member = $2 AND role = $3', message.guild.id, message.author.id, role.id)
-                    if costData is None:
-                        await message.channel.send("Role not available for purchase.")
-                    elif purchaseData is not None:
-                        await message.channel.send("You already bought this role.")
-                    elif accountData is None:
-                        await message.channel.send("Can't find any account data. Please run the payday command (`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`) at least once so we can give you some " + currencyName + ".")
+                    if accountData is None:
+                        memberFunds = roleCost
                     else:
-                        roleCost = costData[0]
-                        memberFunds = accountData[0]
-                        if memberFunds < roleCost:
-                            await message.channel.send("The '" + role.name + "' role costs " + str(roleCost) + " " + currencyName + ", and you only have " + str(memberFunds) + " " + currencyName + " in your account.")
-                        else:
-                            memberFunds -= roleCost
-                            await conn.execute('INSERT INTO tbl_purchase_record (server, member, role, amount_paid) VALUES ($1, $2, $3, $4)', message.guild.id, message.author.id, role.id, roleCost)
-                            await conn.execute('UPDATE tbl_account_balance SET balance = $1 WHERE server = $2 AND member = $3', memberFunds, message.guild.id, message.author.id)
-                            recordTransaction(message.guild, message.author, message.created_at, -roleCost, TRANSACTION_BUY_ROLE + ": " + role.name + "(" + str(role.id) + ")", memberFunds)
-                            await message.author.add_roles(role, reason="Purchased the role for " + str(roleCost) + " " + currencyName + ".")
-                            await message.channel.send("Thank you for purchasing the '" + role.name + "' role for " + str(roleCost) + " " + currencyName + ". Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
-            finally:
-                await returnConnection(conn)
-
-async def refundRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + REFUND_ROLE_COMMAND:
-        role = parseRole(message.guild, parsing[2])
-        if role is None:
-            await message.channel.send("You did not enter a valid role, please specify the role with either an `@` mention, the role's id number, or the role's full name.")
-        elif message.author.roles.count(role) == 0:
-            await message.channel.send("You don't have this role.")
-        else:
-            conn = await getConnection()
-            try:
-                currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
-                if currencyData is not None:
-                    currencyName = currencyData[0]
-                    costData = await conn.fetchrow('SELECT amount_paid FROM tbl_purchase_record WHERE server = $1 AND member = $2 AND role = $3', message.guild.id, message.author.id, role.id)
-                    if costData is None:
-                        await message.channel.send("Role cannot be refunded.")
-                    else:
-                        roleCost = costData[0]
-                        accountData = await conn.fetchrow('SELECT balance FROM tbl_account_balance WHERE server = $1 AND member = $2', message.guild.id, message.author.id)
-                        if accountData is None:
-                            memberFunds = roleCost
-                        else:
-                            memberFunds = accountData[0] + roleCost
-                        recordTransaction(message.guild, message.author, message.created_at, roleCost, TRANSACTION_REFUND_ROLE + ": " + role.name + "(" + str(role.id) + ")", memberFunds)
-                        await conn.execute('UPDATE tbl_account_balance SET balance = $1 WHERE server = $2 AND member = $3', memberFunds, message.guild.id, message.author.id)
-                        await conn.execute('DELETE FROM tbl_purchase_record WHERE server = $1 AND member = $2 AND role = $3 AND amount_paid = $4', message.guild.id, message.author.id, role.id, roleCost)
-                        await message.author.remove_roles(role, reason="Returned the role for " + str(roleCost) + " " + currencyName + ".")
-                        await message.channel.send("You have returned the '" + role.name + "' role and " + str(roleCost) + " " + currencyName + " has been returned to you. Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
-            finally:
-                await returnConnection(conn)
+                        memberFunds = accountData[0] + roleCost
+                    recordTransaction(message.guild, message.author, message.created_at, roleCost, TRANSACTION_REFUND_ROLE + ": " + role.name + "(" + str(role.id) + ")", memberFunds)
+                    await conn.execute('UPDATE tbl_account_balance SET balance = $1 WHERE server = $2 AND member = $3', memberFunds, message.guild.id, message.author.id)
+                    await conn.execute('DELETE FROM tbl_purchase_record WHERE server = $1 AND member = $2 AND role = $3 AND amount_paid = $4', message.guild.id, message.author.id, role.id, roleCost)
+                    await message.author.remove_roles(role, reason="Returned the role for " + str(roleCost) + " " + currencyName + ".")
+                    await message.channel.send("You have returned the '" + role.name + "' role and " + str(roleCost) + " " + currencyName + " has been returned to you. Your account balance is now: " + str(memberFunds) + " " + currencyName + ". Have a nice day.")
+        finally:
+            await returnConnection(conn)
 
 async def persistBuyablesMember(member):
     if isinstance(member, discord.Member) and not member.bot:

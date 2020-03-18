@@ -53,10 +53,9 @@ def cacheInvite(invite, creationTime, serverId):
         maxUses = None
     invitesCache[serverId][invite.code] = (expiry, invite.uses, maxUses, invite.inviter.id)
 
-async def setupPromoterRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].rpartition(" ")
+async def setupPromoterRole(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.rpartition(" ")
         recruitCountString = parsing[2]
         roleString = parsing[0]
 
@@ -94,8 +93,7 @@ async def setupPromoterRole(message):
                     await returnConnection(conn)
 
 async def clearPromoterRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         conn = await getConnection()
         try:
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_promoter_role_settings WHERE server = $1', message.guild.id)

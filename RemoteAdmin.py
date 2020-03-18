@@ -27,20 +27,18 @@ REMOTE_ADMIN_CHANNEL_LIST_COMMAND = "listchannels"
 REMOTE_ADMIN_GET_PERMS_COMMAND = "getperms"
 
 async def listServers(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + REMOTE_ADMIN_SERVER_LIST_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
+    if message.author.id == MIDNIGHTS_TRUE_MASTER:
         output = "Currently attached to the following servers:"
         for server in client.guilds:
             output += "\n" + server.name + " (id: " + str(server.id) + ")"
         await message.channel.send(output)
 
-async def leaveServer(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + REMOTE_ADMIN_SERVER_REMOVE_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
-        if parsing[2].isdigit():
-            server = discord.utils.get(client.guilds, id=int(parsing[2]))
+async def leaveServer(message, commandArgs):
+    if message.author.id == MIDNIGHTS_TRUE_MASTER:
+        if commandArgs.isdigit():
+            server = discord.utils.get(client.guilds, id=int(commandArgs))
         else:
-            server = discord.utils.get(client.guilds, name=parsing[2])
+            server = discord.utils.get(client.guilds, name=commandArgs)
 
         if server is None:
             await message.channel.send("Can't find that server. Don't think I'm actually on it, if it exists at all.")
@@ -57,13 +55,12 @@ async def reportServerLeave(server):
     await master.create_dm()
     await master.dm_channel.send("Left server: " + server.name + " (id: " + str(server.id) + ")")
 
-async def listServerChannels(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + REMOTE_ADMIN_CHANNEL_LIST_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
-        if parsing[2].isdigit():
-            server = discord.utils.get(client.guilds, id=int(parsing[2]))
+async def listServerChannels(message, commandArgs):
+    if message.author.id == MIDNIGHTS_TRUE_MASTER:
+        if commandArgs.isdigit():
+            server = discord.utils.get(client.guilds, id=int(commandArgs))
         else:
-            server = discord.utils.get(client.guilds, name=parsing[2])
+            server = discord.utils.get(client.guilds, name=commandArgs)
 
         if server is None:
             await message.channel.send("Can't find that server. Don't think I'm actually on it, if it exists at all.")
@@ -97,19 +94,18 @@ async def listServerChannels(message):
 
             await message.channel.send(output)
 
-async def getPerms(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + REMOTE_ADMIN_GET_PERMS_COMMAND and message.author.id == MIDNIGHTS_TRUE_MASTER:
-        if parsing[2].isdigit():
-            subject = discord.utils.get(client.guilds, id=int(parsing[2]))
+async def getPerms(message, commandArgs):
+    if message.author.id == MIDNIGHTS_TRUE_MASTER:
+        if commandArgs.isdigit():
+            subject = discord.utils.get(client.guilds, id=int(commandArgs))
             if subject is None:
-                subject = await client.fetch_channel(int(parsing[2]))
+                subject = await client.fetch_channel(int(commandArgs))
         else:
-            subject = discord.utils.get(client.guilds, name=parsing[2])
+            subject = discord.utils.get(client.guilds, name=commandArgs)
             if subject is None:
                 channels = []
                 for server in client.guilds:
-                    oneChannel = discord.utils.get(server.channels, name=parsing[2])
+                    oneChannel = discord.utils.get(server.channels, name=commandArgs)
                     if oneChannel is not None:
                         channels.append(oneChannel)
                 if len(channels) == 1:

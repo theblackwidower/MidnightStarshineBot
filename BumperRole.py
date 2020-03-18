@@ -30,10 +30,9 @@ BUMP_BOARD_CLEAR_COMMAND = "clearbumpboardchannel"
 DISBOARD_BOT_ID = 302050872383242240
 SUCCESSFUL_DISBOARD_BUMP_MESSAGE = "Bump done :thumbsup:"
 
-async def setupBumperRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + SETUP_BUMPER_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].rpartition(" ")
+async def setupBumperRole(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.rpartition(" ")
         bumpCountString = parsing[2]
         roleString = parsing[0]
 
@@ -70,8 +69,7 @@ async def setupBumperRole(message):
                     await returnConnection(conn)
 
 async def clearBumperRole(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + CLEAR_BUMPER_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         conn = await getConnection()
         try:
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_bumper_role_settings WHERE server = $1', message.guild.id)
@@ -84,10 +82,9 @@ async def clearBumperRole(message):
         finally:
             await returnConnection(conn)
 
-async def scanForBumps(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + SCAN_BUMP_CHANNEL_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        channel = parseChannel(message.guild, parsing[2])
+async def scanForBumps(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        channel = parseChannel(message.guild, commandArgs)
         disboardBot = message.guild.get_member(DISBOARD_BOT_ID)
         if disboardBot is None:
             await message.channel.send("Disboard Bot is not installed on the server.")
@@ -183,10 +180,9 @@ async def persistBumperRole(member):
         finally:
             await returnConnection(conn)
 
-async def setBumpLeaderboardChannel(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + BUMP_BOARD_SET_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        if parsing[2] == "":
+async def setBumpLeaderboardChannel(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        if commandArgs == "":
             await message.channel.send("Please specify a channel for the bump leaderboard.")
         elif len(message.channel_mentions) == 0:
             await message.channel.send("Please specify a valid channel.")
@@ -224,8 +220,7 @@ async def setBumpLeaderboardChannel(message):
                 await returnConnection(conn)
 
 async def clearBumpLeaderboardChannel(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + BUMP_BOARD_CLEAR_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         server_id = message.guild.id
         conn = await getConnection()
         try:

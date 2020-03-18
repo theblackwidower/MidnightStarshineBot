@@ -35,10 +35,9 @@ def setupDataCache(server_id):
     if server_id not in activeRecordStart:
         activeRecordStart[server_id] = dict()
 
-async def setupActive(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        parsing = parsing[2].rpartition(" ")
+async def setupActive(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
+        parsing = commandArgs.rpartition(" ")
         maxString = parsing[2]
         parsing = parsing[0].rpartition(" ")
         durationString = parsing[2]
@@ -82,8 +81,7 @@ async def setupActive(message):
                     await returnConnection(conn)
 
 async def clearActive(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND and message.author.permissions_in(message.channel).manage_guild:
+    if message.author.permissions_in(message.channel).manage_guild:
         conn = await getConnection()
         try:
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
