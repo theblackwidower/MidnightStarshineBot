@@ -392,7 +392,7 @@ async def help(message):
                 if userPerms.manage_messages:
                     output += "`" + COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
         elif isinstance(message.channel, discord.DMChannel):
-            if message.author.id == MIDNIGHTS_TRUE_MASTER and IS_ECHO_ENABLED:
+            if message.author.id in ALTERNATE_SPEAKERS and IS_ECHO_ENABLED:
                 output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will forward anything you tell me to, to the channel ID specified, assuming I can actually access the channel specified.\n"
             output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
             if message.author.id == MIDNIGHTS_TRUE_MASTER:
