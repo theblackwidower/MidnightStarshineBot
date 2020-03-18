@@ -39,7 +39,6 @@ from RoleControl import *
 from CustomizedCode import *
 
 IS_EMOJI_CENSOR_ENABLED = False
-IS_ECHO_ENABLED = True
 IS_YAG_SNIPE_ENABLED = False
 IS_RYLAN_SNIPE_ENABLED = False
 IS_GHOST_PING_DETECTOR_ENABLED = False
@@ -165,6 +164,7 @@ async def on_message(message):
     if message.content.startswith(COMMAND_PREFIX):
         parsing = message.content.partition(" ")
         command = parsing[0][len(COMMAND_PREFIX):]
+        commandArgs = parsing[2].strip()
         if command == HELP_COMMAND:
             await help(message)
         elif command == SOURCE_CODE_COMMAND:
@@ -172,10 +172,10 @@ async def on_message(message):
         elif command == SANCTUARY_COMMAND:
             await sanctuaryInvite(message)
         elif command == ECHO_COMMAND:
-            await echo(message)
+            await echo(message, commandArgs)
         elif isinstance(message.channel, discord.TextChannel):
             if command == ROLECALL_COMMAND:
-                await rolecall(message)
+                await rolecall(message, commandArgs)
 
             elif command == PAYDAY_SETUP_COMMAND:
                 await setupPayday(message)
@@ -263,7 +263,7 @@ async def on_message(message):
                 await banDelete(message)
         elif isinstance(message.channel, discord.DMChannel):
             if command == CLEAR_DMS_COMMAND:
-                await clearDms(message)
+                await clearDms(message, commandArgs)
             elif command == REMOTE_ADMIN_SERVER_LIST_COMMAND:
                 await listServers(message)
             elif command == REMOTE_ADMIN_SERVER_REMOVE_COMMAND:
@@ -297,149 +297,143 @@ async def on_guild_channel_create(channel):
     await setupChannelModRoles(channel)
 
 async def help(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + HELP_COMMAND:
-        userPerms = message.author.permissions_in(message.channel)
-        isManagePerms = userPerms.manage_guild
+    userPerms = message.author.permissions_in(message.channel)
+    isManagePerms = userPerms.manage_guild
 
-        output = "Hello, I am Midnight Starshine. Your friendly neighbourhood Discord bot. Here to help in any way I can.\n"
+    output = "Hello, I am Midnight Starshine. Your friendly neighbourhood Discord bot. Here to help in any way I can.\n"
 
-        output += "\n**COMMANDS:**\n"
-        output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
-        output += "`" + COMMAND_PREFIX + SOURCE_CODE_COMMAND + "`: I'm licenced under the GNU AGPL version 3. This means you are fully entitled to look at my full source code. Enter this command and I'll send you a link to my GitHub repository.\n"
-        output += "`" + COMMAND_PREFIX + SANCTUARY_COMMAND + "`: Every girl needs a place to unwind. I have my very special sanctuary. If you'd like an invite to **\"Moonlight's Sanctuary\"**. Just use this command.\n"
-        if isinstance(message.channel, discord.TextChannel):
-            conn = await getConnection()
-            try:
-                paydayData = await conn.fetchrow('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = $1', message.guild.id)
-                currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
-                paidRolesData = await conn.fetchrow('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = $1', message.guild.id)
-                rulesData = await conn.fetchrow('SELECT COUNT(content) FROM tbl_rules WHERE server = $1', message.guild.id)
-                timeoutData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
-            finally:
-                await returnConnection(conn)
-            if message.author.id in ALTERNATE_SPEAKERS and IS_ECHO_ENABLED:
-                output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and a select few, tell me to.\n"
+    output += "\n**COMMANDS:**\n"
+    output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
+    output += "`" + COMMAND_PREFIX + SOURCE_CODE_COMMAND + "`: I'm licenced under the GNU AGPL version 3. This means you are fully entitled to look at my full source code. Enter this command and I'll send you a link to my GitHub repository.\n"
+    output += "`" + COMMAND_PREFIX + SANCTUARY_COMMAND + "`: Every girl needs a place to unwind. I have my very special sanctuary. If you'd like an invite to **\"Moonlight's Sanctuary\"**. Just use this command.\n"
+    if isinstance(message.channel, discord.TextChannel):
+        conn = await getConnection()
+        try:
+            paydayData = await conn.fetchrow('SELECT amount, cooldown FROM tbl_payday_settings WHERE server = $1', message.guild.id)
+            currencyData = await conn.fetchrow('SELECT currency_name FROM tbl_currency WHERE server = $1', message.guild.id)
+            paidRolesData = await conn.fetchrow('SELECT COUNT(role) FROM tbl_paid_roles WHERE server = $1', message.guild.id)
+            rulesData = await conn.fetchrow('SELECT COUNT(content) FROM tbl_rules WHERE server = $1', message.guild.id)
+            timeoutData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
+        finally:
+            await returnConnection(conn)
+        if message.author.id in ALTERNATE_SPEAKERS:
+            output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and a select few, tell me to.\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+            output += "\n*Active Role Function:*\n"
+            output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
+            output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "\n*Promoter Role Function:*\n"
+            output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role.\n"
+            output += "`" + COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "\n*Bumper Role Function:*\n"
+            output += "`" + COMMAND_PREFIX + SETUP_BUMPER_ROLE_COMMAND + "`: Use to setup the bumper role feature. Enter the command, followed by the role, and the number of successful bumps one would need to have done to qualify for the role.\n"
+            output += "`" + COMMAND_PREFIX + CLEAR_BUMPER_ROLE_COMMAND + "`: Use to disable the bumper role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "`" + COMMAND_PREFIX + SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
+            output += "`" + COMMAND_PREFIX + BUMP_BOARD_SET_COMMAND + "`: Will set which channel to post the bump leaderboard in. This post will be continually updated as bumps are made.\n"
+            output += "`" + COMMAND_PREFIX + BUMP_BOARD_CLEAR_COMMAND + "`: Will delete the official posting of the bump leaderboard.\n"
+            output += "\n*Role restrictions:*\n"
+            output += "`" + COMMAND_PREFIX + CREATE_ROLE_GROUP_COMMAND + "`: Creates a new role group. This will restrict all members to select only one role from each group.\n"
+            output += "`" + COMMAND_PREFIX + DELETE_ROLE_GROUP_COMMAND + "`: Deletes an existant role group.\n"
+            output += "`" + COMMAND_PREFIX + ADD_TO_ROLE_GROUP_COMMAND + "`: Adds a role to a group. Provide the group name, and then the role.\n"
+            output += "`" + COMMAND_PREFIX + REMOVE_FROM_ROLE_GROUP_COMMAND + "`: Removes a role from a group. Provide the group name, and then the role.\n"
+        if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
+            output += "\n*Buyable roles:*\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
+            output += "`" + COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
+        if paydayData is not None:
+            output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(paydayData[1]) + ".\n"
+            output += "`" + COMMAND_PREFIX + BALANCE_COMMAND + "`: Will display your account balance.\n"
+        if currencyData is not None:
+            if userPerms.manage_roles:
+                output += "`" + COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND + "`: Will allow you to set up a role for purchase. Just provide the role, and the cost in " + currencyData[0] + ".\n"
+                output += "`" + COMMAND_PREFIX + BUY_ROLE_REMOVE_COMMAND + "`: Will allow you to remove a role from the purchase list. Just name the role, and it'll be removed.\n"
+            if paidRolesData[0] > 0:
+                output += "`" + COMMAND_PREFIX + LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
+                output += "`" + COMMAND_PREFIX + BUY_ROLE_COMMAND + "`: Will allow you to buy any specified role for " + currencyData[0] + ".\n"
+                output += "`" + COMMAND_PREFIX + REFUND_ROLE_COMMAND + "`: Will allow you to return any specified role, and get a full refund in " + currencyData[0] + ".\n"
+        if rulesData[0] > 0 or isManagePerms:
+            output += "\n*Rule management:*\n"
+        if rulesData[0] > 0:
+            output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
+            output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
+            output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
+        if rulesData[0] > 0:
+            output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
             if isManagePerms:
-                output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
-                output += "\n*Active Role Function:*\n"
-                output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
-                output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
-                output += "\n*Promoter Role Function:*\n"
-                output += "`" + COMMAND_PREFIX + SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role.\n"
-                output += "`" + COMMAND_PREFIX + CLEAR_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
-                output += "\n*Bumper Role Function:*\n"
-                output += "`" + COMMAND_PREFIX + SETUP_BUMPER_ROLE_COMMAND + "`: Use to setup the bumper role feature. Enter the command, followed by the role, and the number of successful bumps one would need to have done to qualify for the role.\n"
-                output += "`" + COMMAND_PREFIX + CLEAR_BUMPER_ROLE_COMMAND + "`: Use to disable the bumper role feature. If you want to reenable it, you'll have to run the setup command again.\n"
-                output += "`" + COMMAND_PREFIX + SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
-                output += "`" + COMMAND_PREFIX + BUMP_BOARD_SET_COMMAND + "`: Will set which channel to post the bump leaderboard in. This post will be continually updated as bumps are made.\n"
-                output += "`" + COMMAND_PREFIX + BUMP_BOARD_CLEAR_COMMAND + "`: Will delete the official posting of the bump leaderboard.\n"
-                output += "\n*Role restrictions:*\n"
-                output += "`" + COMMAND_PREFIX + CREATE_ROLE_GROUP_COMMAND + "`: Creates a new role group. This will restrict all members to select only one role from each group.\n"
-                output += "`" + COMMAND_PREFIX + DELETE_ROLE_GROUP_COMMAND + "`: Deletes an existant role group.\n"
-                output += "`" + COMMAND_PREFIX + ADD_TO_ROLE_GROUP_COMMAND + "`: Adds a role to a group. Provide the group name, and then the role.\n"
-                output += "`" + COMMAND_PREFIX + REMOVE_FROM_ROLE_GROUP_COMMAND + "`: Removes a role from a group. Provide the group name, and then the role.\n"
-            if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
-                output += "\n*Buyable roles:*\n"
-            if isManagePerms:
-                output += "`" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
-                output += "`" + COMMAND_PREFIX + PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
-            if paydayData is not None:
-                output += "`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(paydayData[1]) + ".\n"
-                output += "`" + COMMAND_PREFIX + BALANCE_COMMAND + "`: Will display your account balance.\n"
-            if currencyData is not None:
-                if userPerms.manage_roles:
-                    output += "`" + COMMAND_PREFIX + BUY_ROLE_SETUP_COMMAND + "`: Will allow you to set up a role for purchase. Just provide the role, and the cost in " + currencyData[0] + ".\n"
-                    output += "`" + COMMAND_PREFIX + BUY_ROLE_REMOVE_COMMAND + "`: Will allow you to remove a role from the purchase list. Just name the role, and it'll be removed.\n"
-                if paidRolesData[0] > 0:
-                    output += "`" + COMMAND_PREFIX + LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
-                    output += "`" + COMMAND_PREFIX + BUY_ROLE_COMMAND + "`: Will allow you to buy any specified role for " + currencyData[0] + ".\n"
-                    output += "`" + COMMAND_PREFIX + REFUND_ROLE_COMMAND + "`: Will allow you to return any specified role, and get a full refund in " + currencyData[0] + ".\n"
-            if rulesData[0] > 0 or isManagePerms:
-                output += "\n*Rule management:*\n"
-            if rulesData[0] > 0:
-                output += "`" + COMMAND_PREFIX + RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
-            if isManagePerms:
-                output += "`" + COMMAND_PREFIX + RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
-                output += "`" + COMMAND_PREFIX + RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
-                output += "`" + COMMAND_PREFIX + RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
-            if rulesData[0] > 0:
-                output += "`" + COMMAND_PREFIX + RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
-                if isManagePerms:
-                    output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
-                    output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
-                    output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
-            if isManagePerms or userPerms.kick_members or userPerms.ban_members:
-                output += "\n*Moderation:*\n"
-            if isManagePerms:
-                output += "`" + COMMAND_PREFIX + MOD_MUTE_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the mute function. This'll speed up and simplify excution while still maintaining the system's strength.\n"
-            if userPerms.kick_members:
-                output += "`" + COMMAND_PREFIX + MOD_MUTE_COMMAND + "`: Will mute the specified user in the specified channel, or all channels if none is specified.\n"
-                output += "`" + COMMAND_PREFIX + MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in the specified channel, or all channels if none is specified.\n"
-            if isManagePerms:
-                output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "`: Can be used to set up timeouts, which restricts a user to a single channel or category specifically for that purpose. Just specify the channel or category, and you're all set.\n"
-                output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the timeout function. This'll speed up and simplify excution while still maintaining the system's strength."
-                if timeoutData is None:
-                    output += " Please be sure to run the `" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "` command before attempting to set up the role."
-                output += "\n"
-            if userPerms.kick_members:
-                if timeoutData is not None:
-                    output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_COMMAND + "`: Will isolate the specified user to a single channel: <#" + str(timeoutData[0]) + ">\n"
-                    output += "`" + COMMAND_PREFIX + MOD_TIMEIN_COMMAND + "`: Will return the specified user from their timeout in <#" + str(timeoutData[0]) + ">.\n"
-                output += "`" + COMMAND_PREFIX + MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
-            if userPerms.ban_members:
-                output += "`" + COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
-                if userPerms.manage_messages:
-                    output += "`" + COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
-        elif isinstance(message.channel, discord.DMChannel):
-            if message.author.id in ALTERNATE_SPEAKERS and IS_ECHO_ENABLED:
-                output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will forward anything you tell me to, to the channel ID specified, assuming I can actually access the channel specified.\n"
-            output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
-            if message.author.id == MIDNIGHTS_TRUE_MASTER:
-                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_LIST_COMMAND + "`: Will list all servers I'm currently running on.\n"
-                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_REMOVE_COMMAND + "`: Will remove me from whatever server is specified by ID or full name.\n"
-                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_CHANNEL_LIST_COMMAND + "`: Will list all channels I can see in the specified server.\n"
-                output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_GET_PERMS_COMMAND + "`: Will list all my permissions in the channel or server specified.\n"
+                output += "`" + COMMAND_PREFIX + RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
+                output += "`" + COMMAND_PREFIX + RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
+                output += "`" + COMMAND_PREFIX + RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
+        if isManagePerms or userPerms.kick_members or userPerms.ban_members:
+            output += "\n*Moderation:*\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + MOD_MUTE_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the mute function. This'll speed up and simplify excution while still maintaining the system's strength.\n"
+        if userPerms.kick_members:
+            output += "`" + COMMAND_PREFIX + MOD_MUTE_COMMAND + "`: Will mute the specified user in the specified channel, or all channels if none is specified.\n"
+            output += "`" + COMMAND_PREFIX + MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in the specified channel, or all channels if none is specified.\n"
+        if isManagePerms:
+            output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "`: Can be used to set up timeouts, which restricts a user to a single channel or category specifically for that purpose. Just specify the channel or category, and you're all set.\n"
+            output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the timeout function. This'll speed up and simplify excution while still maintaining the system's strength."
+            if timeoutData is None:
+                output += " Please be sure to run the `" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "` command before attempting to set up the role."
+            output += "\n"
+        if userPerms.kick_members:
+            if timeoutData is not None:
+                output += "`" + COMMAND_PREFIX + MOD_TIMEOUT_COMMAND + "`: Will isolate the specified user to a single channel: <#" + str(timeoutData[0]) + ">\n"
+                output += "`" + COMMAND_PREFIX + MOD_TIMEIN_COMMAND + "`: Will return the specified user from their timeout in <#" + str(timeoutData[0]) + ">.\n"
+            output += "`" + COMMAND_PREFIX + MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
+        if userPerms.ban_members:
+            output += "`" + COMMAND_PREFIX + MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
+            if userPerms.manage_messages:
+                output += "`" + COMMAND_PREFIX + MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
+    elif isinstance(message.channel, discord.DMChannel):
+        if message.author.id in ALTERNATE_SPEAKERS:
+            output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will forward anything you tell me to, to the channel ID specified, assuming I can actually access the channel specified.\n"
+        output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
+        if message.author.id == MIDNIGHTS_TRUE_MASTER:
+            output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_LIST_COMMAND + "`: Will list all servers I'm currently running on.\n"
+            output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_SERVER_REMOVE_COMMAND + "`: Will remove me from whatever server is specified by ID or full name.\n"
+            output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_CHANNEL_LIST_COMMAND + "`: Will list all channels I can see in the specified server.\n"
+            output += "`" + COMMAND_PREFIX + REMOTE_ADMIN_GET_PERMS_COMMAND + "`: Will list all my permissions in the channel or server specified.\n"
 
-        if len(output) > MAX_CHARS:
-            outputLines = output.split("\n")
-            output = ""
-            for line in outputLines:
-                if len(output) + len(line) <= MAX_CHARS - 2:
-                    output += line + "\n"
-                else:
-                    await message.channel.send(output)
-                    output = line + "\n"
+    if len(output) > MAX_CHARS:
+        outputLines = output.split("\n")
+        output = ""
+        for line in outputLines:
+            if len(output) + len(line) <= MAX_CHARS - 2:
+                output += line + "\n"
+            else:
+                await message.channel.send(output)
+                output = line + "\n"
 
-        await message.channel.send(output)
+    await message.channel.send(output)
 
 async def sourceCode(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + SOURCE_CODE_COMMAND:
-        if isinstance(message.channel, discord.TextChannel):
-            await message.channel.send("A link has been sent to your DMs.")
-            await message.author.create_dm()
-            DMChannel = message.author.dm_channel
-        else:
-            DMChannel = message.channel
-        output = "So, you would like to take a look at my full source code... Naughty...\n"
-        output += "Well, I'm licenced under the GNU AGPL version 3, so I guess I'm obliged.\n"
-        output += "It's available at: https://github.com/theblackwidower/MidnightStarshineBot"
-        await DMChannel.send(output)
+    if isinstance(message.channel, discord.TextChannel):
+        await message.channel.send("A link has been sent to your DMs.")
+        await message.author.create_dm()
+        DMChannel = message.author.dm_channel
+    else:
+        DMChannel = message.channel
+    output = "So, you would like to take a look at my full source code... Naughty...\n"
+    output += "Well, I'm licenced under the GNU AGPL version 3, so I guess I'm obliged.\n"
+    output += "It's available at: https://github.com/theblackwidower/MidnightStarshineBot"
+    await DMChannel.send(output)
 
 async def sanctuaryInvite(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + SANCTUARY_COMMAND:
-        if isinstance(message.channel, discord.TextChannel):
-            await message.channel.send("An invite has been sent to your DMs.")
-            await message.author.create_dm()
-            DMChannel = message.author.dm_channel
-        else:
-            DMChannel = message.channel
-        output = "You want to visit my personal sanctuary?\n"
-        output += "Well... come on in...\n"
-        output += "https://discord.gg/Qekr2CW"
-        await DMChannel.send(output)
+    if isinstance(message.channel, discord.TextChannel):
+        await message.channel.send("An invite has been sent to your DMs.")
+        await message.author.create_dm()
+        DMChannel = message.author.dm_channel
+    else:
+        DMChannel = message.channel
+    output = "You want to visit my personal sanctuary?\n"
+    output += "Well... come on in...\n"
+    output += "https://discord.gg/Qekr2CW"
+    await DMChannel.send(output)
 
 async def ghostPingDetector(message):
     if IS_GHOST_PING_DETECTOR_ENABLED and message.created_at + GHOST_PING_DETECTOR_THRESHOLD >= datetime.datetime.now():
@@ -510,37 +504,33 @@ async def emoji_censor(message):
         if (emojiCount > 0 and (messageLength < 3 or messageLength <= emojiCount)):
             await message.delete()
 
-async def echo(message):
-    if IS_ECHO_ENABLED:
-        parsing = message.content.partition(" ")
-        if parsing[0] == COMMAND_PREFIX + ECHO_COMMAND and message.author.id in ALTERNATE_SPEAKERS:
-            sentMessage = None
-            if isinstance(message.channel, discord.DMChannel):
-                parsing = parsing[2].partition(" ")
-                if parsing[0].isdigit():
-                    channel = await client.fetch_channel(int(parsing[0]))
-                    if channel is None:
-                        await message.channel.send("Can't find channel.")
-                    else:
-                        sentMessage = await channel.send(parsing[2])
-                        await message.channel.send("Message posted.")
+async def echo(message, commandArgs):
+    if message.author.id in ALTERNATE_SPEAKERS:
+        sentMessage = None
+        if isinstance(message.channel, discord.DMChannel):
+            parsing = commandArgs.partition(" ")
+            if parsing[0].isdigit():
+                channel = await client.fetch_channel(int(parsing[0]))
+                if channel is None:
+                    await message.channel.send("Can't find channel.")
                 else:
-                    await message.channel.send("Invalid channel ID.")
+                    sentMessage = await channel.send(parsing[2])
+                    await message.channel.send("Message posted.")
             else:
-                sentMessage = await message.channel.send(parsing[2])
-                await message.delete()
-            if message.author.id != MIDNIGHTS_TRUE_MASTER:
-                master = client.get_user(MIDNIGHTS_TRUE_MASTER)
-                await master.create_dm()
-                await master.dm_channel.send(message.author.mention + " told me to say: \"" + sentMessage.content + "\" in: " + sentMessage.guild.name + " " + sentMessage.channel.mention)
+                await message.channel.send("Invalid channel ID.")
+        else:
+            sentMessage = await message.channel.send(parsing[2])
+            await message.delete()
+        if message.author.id != MIDNIGHTS_TRUE_MASTER:
+            master = client.get_user(MIDNIGHTS_TRUE_MASTER)
+            await master.create_dm()
+            await master.dm_channel.send(message.author.mention + " told me to say: \"" + sentMessage.content + "\" in: " + sentMessage.guild.name + " " + sentMessage.channel.mention)
 
-async def rolecall(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + ROLECALL_COMMAND and message.author.permissions_in(message.channel).manage_guild:
-        content = parsing[2].strip()
+async def rolecall(message, commandArgs):
+    if message.author.permissions_in(message.channel).manage_guild:
         scannedRole = None
-        if len(content) > 0:
-            scannedRole = parseRole(message.guild, content)
+        if len(commandArgs) > 0:
+            scannedRole = parseRole(message.guild, commandArgs)
             if scannedRole is None:
                 await message.channel.send("Invalid role name.")
                 return
@@ -620,25 +610,23 @@ async def rylanSnipe(member):
         else:
             print("Can't kick " + member.name + " in " + member.guild.name + ". Lacking permissions.")
 
-async def clearDms(message):
-    parsing = message.content.partition(" ")
-    if parsing[0] == COMMAND_PREFIX + CLEAR_DMS_COMMAND:
-        meBot = message.channel.me
-        if parsing[2] == "":
-            async for thisMessage in message.channel.history(limit=1000000, oldest_first=False):
-                if thisMessage.author == meBot:
-                    await thisMessage.delete()
-            await message.channel.send("Cleared all DMs I sent to you.")
-        elif parsing[2].isdigit():
-            try:
-                thisMessage = await message.channel.fetch_message(int(parsing[2]))
-                if thisMessage.author == meBot:
-                    await thisMessage.delete()
-                else:
-                    await message.channel.send("This isn't my message.")
-            except discord.NotFound:
-                await message.channel.send("Message " + parsing[2] + " not found.")
-        else:
-            await message.channel.send("Not a valid message number.")
+async def clearDms(message, commandArgs):
+    meBot = message.channel.me
+    if commandArgs == "":
+        async for thisMessage in message.channel.history(limit=1000000, oldest_first=False):
+            if thisMessage.author == meBot:
+                await thisMessage.delete()
+        await message.channel.send("Cleared all DMs I sent to you.")
+    elif commandArgs.isdigit():
+        try:
+            thisMessage = await message.channel.fetch_message(int(commandArgs))
+            if thisMessage.author == meBot:
+                await thisMessage.delete()
+            else:
+                await message.channel.send("This isn't my message.")
+        except discord.NotFound:
+            await message.channel.send("Message " + commandArgs + " not found.")
+    else:
+        await message.channel.send("Not a valid message number.")
 
 client.run(DISCORD_TOKEN)
