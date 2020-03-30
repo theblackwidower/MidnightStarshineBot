@@ -82,7 +82,7 @@ async def clearBumperRole(message):
         finally:
             await returnConnection(conn)
 
-async def scanForBumps(message, commandArgs):
+async def scanForBumps(message, commandArgs, client):
     if message.author.permissions_in(message.channel).manage_guild:
         channel = parseChannel(message.guild, commandArgs)
         disboardBot = message.guild.get_member(DISBOARD_BOT_ID)
@@ -122,7 +122,7 @@ async def scanForBumps(message, commandArgs):
                 newString += " of which are new"
 
             await message.channel.send("Found " + str(count) + " bumps in " + channel.mention + newString + ".")
-            await updateBumpLeaderboardChannel(message)
+            await updateBumpLeaderboardChannel(message, client)
 
 def getBumper(message):
     bumper = None
@@ -136,7 +136,7 @@ def getBumper(message):
             bumper = message.mentions[0]
     return bumper
 
-async def recordBump(message):
+async def recordBump(message, client):
     if message.author.id == DISBOARD_BOT_ID:
         conn = await getConnection()
         try:
@@ -156,7 +156,7 @@ async def recordBump(message):
                                 await bumper.add_roles(role, reason="Successfully bumped the server a total of " + str(countData[0]) + " times.")
                             else:
                                 break
-                    await updateBumpLeaderboardChannel(message)
+                    await updateBumpLeaderboardChannel(message, client)
         finally:
             await returnConnection(conn)
 
@@ -180,7 +180,7 @@ async def persistBumperRole(member):
         finally:
             await returnConnection(conn)
 
-async def setBumpLeaderboardChannel(message, commandArgs):
+async def setBumpLeaderboardChannel(message, commandArgs, client):
     if message.author.permissions_in(message.channel).manage_guild:
         if commandArgs == "":
             await message.channel.send("Please specify a channel for the bump leaderboard.")
@@ -239,7 +239,7 @@ async def clearBumpLeaderboardChannel(message):
         finally:
             await returnConnection(conn)
 
-async def updateBumpLeaderboardChannel(message):
+async def updateBumpLeaderboardChannel(message, client):
     server_id = message.guild.id
     conn = await getConnection()
     try:

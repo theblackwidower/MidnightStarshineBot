@@ -24,8 +24,6 @@ import math
 
 from Constants import *
 
-client = discord.Client()
-
 connPool = None
 
 async def getConnection():

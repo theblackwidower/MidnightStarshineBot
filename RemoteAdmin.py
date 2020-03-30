@@ -26,14 +26,14 @@ REMOTE_ADMIN_SERVER_REMOVE_COMMAND = "pullserver"
 REMOTE_ADMIN_CHANNEL_LIST_COMMAND = "listchannels"
 REMOTE_ADMIN_GET_PERMS_COMMAND = "getperms"
 
-async def listServers(message):
+async def listServers(message, client):
     if message.author.id == MIDNIGHTS_TRUE_MASTER:
         output = "Currently attached to the following servers:"
         for server in client.guilds:
             output += "\n" + server.name + " (id: " + str(server.id) + ")"
         await message.channel.send(output)
 
-async def leaveServer(message, commandArgs):
+async def leaveServer(message, commandArgs, client):
     if message.author.id == MIDNIGHTS_TRUE_MASTER:
         if commandArgs.isdigit():
             server = discord.utils.get(client.guilds, id=int(commandArgs))
@@ -45,17 +45,17 @@ async def leaveServer(message, commandArgs):
         else:
             await server.leave()
 
-async def reportServerJoin(server):
+async def reportServerJoin(server, client):
     master = client.get_user(MIDNIGHTS_TRUE_MASTER)
     await master.create_dm()
     await master.dm_channel.send("Joined a new server: " + server.name + " (id: " + str(server.id) + ")")
 
-async def reportServerLeave(server):
+async def reportServerLeave(server, client):
     master = client.get_user(MIDNIGHTS_TRUE_MASTER)
     await master.create_dm()
     await master.dm_channel.send("Left server: " + server.name + " (id: " + str(server.id) + ")")
 
-async def listServerChannels(message, commandArgs):
+async def listServerChannels(message, commandArgs, client):
     if message.author.id == MIDNIGHTS_TRUE_MASTER:
         if commandArgs.isdigit():
             server = discord.utils.get(client.guilds, id=int(commandArgs))
@@ -94,7 +94,7 @@ async def listServerChannels(message, commandArgs):
 
             await message.channel.send(output)
 
-async def getPerms(message, commandArgs):
+async def getPerms(message, commandArgs, client):
     if message.author.id == MIDNIGHTS_TRUE_MASTER:
         if commandArgs.isdigit():
             subject = discord.utils.get(client.guilds, id=int(commandArgs))
