@@ -51,7 +51,16 @@ def cacheInvite(invite, creationTime, serverId):
         maxUses = invite.max_uses
     else:
         maxUses = None
-    invitesCache[serverId][invite.code] = (expiry, invite.uses, maxUses, invite.inviter.id)
+
+    if invite.inviter is None:
+        print("------------------------------------")
+        print("No inviter on: " + invite.code)
+        print("------------------------------------")
+        inviterId = 0
+    else:
+        inviterId = invite.inviter.id
+
+    invitesCache[serverId][invite.code] = (expiry, invite.uses, maxUses, inviterId)
 
 async def setupPromoterRole(message, commandArgs):
     if message.author.permissions_in(message.channel).manage_guild:
