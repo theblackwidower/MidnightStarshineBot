@@ -22,7 +22,7 @@ This file should contain the following code:
 ```
 DISCORD_TOKEN=[Insert Bot Token here]
 ERROR_LOG=[Full path to where you want the error log to be]
-DATABASE_URL=postgresql://localhost/Midnight?user=[username]&password=[password]
+DATABASE_URL=postgresql://localhost/midnight?user=[username]&password=[password]
 ```
 Insert the token in the appropriate location. (Don't include the brackets.)
 
@@ -35,7 +35,7 @@ You'll also need to install a few Python modules. They're defined in the require
 $ pip install -r requirements.txt
 ```
 
-Finally, you'll need to set up an PostgreSQL database. Name it Midnight and initialize it with the schema in `Midnight.sql`.
+Finally, you'll need to install PostgreSQL 9.6+, and set up a PostgreSQL database. Name it `midnight` and initialize it with the schema in `Midnight.sql`.
 
 Enter the login information in the `.env` file.
 
