@@ -164,9 +164,9 @@ async def on_member_update(before, after):
 @client.event
 async def on_message(message):
     await emojiCensor(message)
-    if message.content.startswith(COMMAND_PREFIX):
+    if message.content.casefold().startswith(COMMAND_PREFIX):
         parsing = message.content.partition(" ")
-        command = parsing[0][len(COMMAND_PREFIX):]
+        command = parsing[0][len(COMMAND_PREFIX):].casefold()
         commandArgs = parsing[2].strip()
         if command == HELP_COMMAND:
             await help(message)
