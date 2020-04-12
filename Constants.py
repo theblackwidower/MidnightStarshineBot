@@ -16,7 +16,7 @@
     # along with this program.  If not, see <https://www.gnu.org/licenses/>.
     # ------------------------------------------------------------------------
 
-import os
+from os import getenv
 
 from dotenv import load_dotenv
 
@@ -27,6 +27,6 @@ MIDNIGHTS_TRUE_MASTER = 204818040628576256
 MAX_CHARS = 2000
 
 load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-ERROR_LOG = os.getenv('ERROR_LOG')
-DATABASE_URL = os.getenv('DATABASE_URL')
+DISCORD_TOKEN = getenv('DISCORD_TOKEN')
+ERROR_LOG = getenv('ERROR_LOG')
+DATABASE_URL = getenv('DATABASE_URL')

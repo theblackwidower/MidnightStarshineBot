@@ -18,6 +18,8 @@
 
 import discord
 
+import os
+
 from Constants import *
 from Utilities import *
 
