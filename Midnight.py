@@ -501,7 +501,7 @@ async def echo(message, commandArgs):
             else:
                 await message.channel.send("Invalid channel ID.")
         else:
-            sentMessage = await message.channel.send(parsing[2])
+            sentMessage = await message.channel.send(commandArgs)
             await message.delete()
         if message.author.id != MIDNIGHTS_TRUE_MASTER:
             master = client.get_user(MIDNIGHTS_TRUE_MASTER)
