@@ -37,6 +37,7 @@ from Rules import *
 from Moderation import *
 from RoleControl import *
 from CustomizedCode import *
+from Audio import *
 
 IS_EMOJI_CENSOR_ENABLED = False
 IS_YAG_SNIPE_ENABLED = False
@@ -180,6 +181,13 @@ async def on_message(message):
             if command == ROLECALL_COMMAND:
                 await rolecall(message, commandArgs)
 
+            elif command == LIST_AMBIENCE_COMMAND:
+                await listAmbience(message)
+            elif command == START_AMBIENCE_COMMAND:
+                await startAmbience(message, commandArgs)
+            elif command == STOP_AMBIENCE_COMMAND:
+                await stopAmbience(message)
+
             elif command == PAYDAY_SETUP_COMMAND:
                 await setupPayday(message, commandArgs)
             elif command == PAYDAY_CLEAR_COMMAND:
@@ -299,6 +307,10 @@ async def on_member_ban(server, user):
 async def on_guild_channel_create(channel):
     await setupChannelModRoles(channel)
 
+@client.event
+async def on_voice_state_update(member, before, after):
+    await checkVoiceChannel(member.guild)
+
 async def help(message):
     userPerms = message.author.permissions_in(message.channel)
     isManagePerms = userPerms.manage_guild
@@ -323,6 +335,12 @@ async def help(message):
             output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and a select few, tell me to.\n"
         if isManagePerms:
             output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+        if len(ambienceList) > 0:
+            output += "\n*Ambient Audio Function:*\n"
+            output += "`" + COMMAND_PREFIX + LIST_AMBIENCE_COMMAND + "`: Will list all available ambience tracks.\n"
+            output += "`" + COMMAND_PREFIX + START_AMBIENCE_COMMAND + "`: Will begin playing the ambient sounds specified in whatever voice channel you're in until everyone leaves, or you ask me to stop.\n"
+            output += "`" + COMMAND_PREFIX + STOP_AMBIENCE_COMMAND + "`: Will stop ambient soundtrack and leave the voice channel.\n"
+        if isManagePerms:
             output += "\n*Active Role Function:*\n"
             output += "`" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
             output += "`" + COMMAND_PREFIX + CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
