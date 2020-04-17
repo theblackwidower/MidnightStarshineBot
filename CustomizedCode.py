@@ -26,9 +26,12 @@ from Utilities import *
 ELEMENT_FINDER = re.compile("^element of .*", flags=re.IGNORECASE)
 
 async def ponyVersePersistElementRole(member):
-    if member.guild.id == 682755852238848037:
+    if member.guild.id == 682755852238848037 or member.guild.id == 700056528379707515:
         isMatch = ELEMENT_FINDER.fullmatch(member.display_name) is not None
-        role = member.guild.get_role(683401036974915645)
+        if member.guild.id == 682755852238848037:
+            role = member.guild.get_role(683401036974915645)
+        elif member.guild.id == 700056528379707515:
+            role = member.guild.get_role(700056528711057489)
         if role is not None:
             if member.roles.count(role) > 0:
                 if not isMatch:
