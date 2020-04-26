@@ -59,12 +59,17 @@ async def startAmbience(message, commandArgs):
                 await message.channel.send("Cannot find specified track. Try running `" + COMMAND_PREFIX + LIST_AMBIENCE_COMMAND + "`.")
             else:
                 vc = await voiceState.channel.connect()
-                def loopAudio(error):
-                    if error is None and vc.is_connected():
-                        vc.play(discord.FFmpegOpusAudio(AMBIENCE_DIRECTORY + "/" + commandArgs + "." + AMBIENCE_FILE_EXT), after=loopAudio)
-                vc.play(discord.FFmpegOpusAudio(AMBIENCE_DIRECTORY + "/" + commandArgs + "." + AMBIENCE_FILE_EXT), after=loopAudio)
-                connectionCache[message.guild.id] = vc
-                await message.channel.send("Playing `" + commandArgs + "`")
+                try:
+                    def loopAudio(error):
+                        if error is None and vc.is_connected():
+                            vc.play(discord.FFmpegOpusAudio(AMBIENCE_DIRECTORY + "/" + commandArgs + "." + AMBIENCE_FILE_EXT), after=loopAudio)
+                    vc.play(discord.FFmpegOpusAudio(AMBIENCE_DIRECTORY + "/" + commandArgs + "." + AMBIENCE_FILE_EXT), after=loopAudio)
+                except:
+                    await vc.disconnect()
+                    raise
+                else:
+                    connectionCache[message.guild.id] = vc
+                    await message.channel.send("Playing `" + commandArgs + "`")
 
 async def stopAmbience(message):
     if len(ambienceList) > 0:
