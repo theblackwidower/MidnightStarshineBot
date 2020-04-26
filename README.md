@@ -35,6 +35,8 @@ You'll also need to install a few Python modules. They're defined in the require
 $ pip install -r requirements.txt
 ```
 
+And, for the bot's audio features, you'll also need to install FFmpeg.
+
 Finally, you'll need to install PostgreSQL 9.6+, and set up a PostgreSQL database. Name it `midnight` and initialize it with the schema in `Midnight.sql`.
 
 Enter the login information in the `.env` file.
