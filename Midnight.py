@@ -143,6 +143,7 @@ async def on_member_join(member):
     await persistMute(member)
     await persistTimeout(member)
     await recordRecruit(member)
+    await stormyVerificationCall(member)
 
 @client.event
 async def on_guild_join(server):
@@ -173,6 +174,7 @@ async def on_member_update(before, after):
 @client.event
 async def on_message(message):
     await emojiCensor(message)
+    await stormyVerificationResponse(message, client)
     if message.content.casefold().startswith(COMMAND_PREFIX):
         parsing = message.content.partition(" ")
         command = parsing[0][len(COMMAND_PREFIX):].casefold()

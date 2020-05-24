@@ -19,6 +19,7 @@
 import discord
 
 import re
+import os
 
 from Constants import *
 from Utilities import *
@@ -39,3 +40,41 @@ async def ponyVersePersistElementRole(member):
             else:
                 if isMatch:
                     await member.add_roles(role, reason="They're now an element.")
+
+CALL = "Sunshine, sunshine, ladybugs awake..."
+RESPONSE_IDENTIFIER = re.compile("^clap\s+your\s+hooves\s+and\s+do\s+a\s+little\s+shake.?", flags=re.IGNORECASE)
+VERIFICATION_QUEUE_FILE = "VerificationQueue.txt"
+
+verificationQueue = []
+
+if os.path.isfile(VERIFICATION_QUEUE_FILE):
+    with open(VERIFICATION_QUEUE_FILE, "r", encoding='utf-8') as file:
+        verificationQueue = file.readlines()
+
+async def stormyVerificationCall(member):
+    if member.guild.id == 549660245618720770:
+        await member.create_dm()
+        DMChannel = member.dm_channel
+        await DMChannel.send(CALL)
+        verificationQueue.append(member.id)
+        with open(VERIFICATION_QUEUE_FILE, "a+", encoding='utf-8') as file:
+            file.write(str(member.id) + "\n")
+
+
+async def stormyVerificationResponse(message, client):
+    if isinstance(message.channel, discord.DMChannel) and message.author.id in verificationQueue:
+        if RESPONSE_IDENTIFIER.fullmatch(message.content) is not None:
+            server = discord.utils.get(client.guilds, id=549660245618720770)
+            member = server.get_member(message.author.id)
+            if member is not None:
+                role = server.get_role(704794251392843817)
+                await member.add_roles(role, reason="They have been verified.")
+                await message.channel.send("Welcome to " + server.name)
+                verificationQueue.remove(message.author.id)
+                with open(VERIFICATION_QUEUE_FILE, 'r+', encoding='utf-8') as file:
+                    file.truncate()
+                    for id in verificationQueue:
+                        file.write(str(id) + "\n")
+        else:
+            await message.channel.send("No dice. Please try again...")
+            await message.channel.send(CALL)
