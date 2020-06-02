@@ -53,11 +53,15 @@ async def startAmbience(message, commandArgs):
         if voiceState is None:
             await message.channel.send("You need to be connected to a voice channel.")
         else:
-            if message.guild.id in connectionCache:
+            botVoiceState = message.guild.me.voice
+            if message.guild.me.voice is not None:
                 await message.channel.send("Already connected to a voice channel.")
             elif commandArgs not in ambienceList:
                 await message.channel.send("Cannot find specified track. Try running `" + COMMAND_PREFIX + LIST_AMBIENCE_COMMAND + "`.")
             else:
+                if message.guild.id in connectionCache:
+                    await connectionCache[message.guild.id].disconnect()
+                    del connectionCache[message.guild.id]
                 vc = await voiceState.channel.connect()
                 try:
                     def loopAudio(error):
@@ -71,18 +75,28 @@ async def startAmbience(message, commandArgs):
                     connectionCache[message.guild.id] = vc
                     await message.channel.send("Playing `" + commandArgs + "`")
 
-async def stopAmbience(message):
+async def stopAmbience(message, client):
     if len(ambienceList) > 0:
-        if message.guild.id not in connectionCache:
+        if message.guild.me.voice is None:
             await message.channel.send("Not connected to a voice channel.")
         else:
-            vc = connectionCache[message.guild.id]
-            await vc.disconnect()
-            del connectionCache[message.guild.id]
+            if message.guild.id in connectionCache:
+                await connectionCache[message.guild.id].disconnect()
+                del connectionCache[message.guild.id]
+            else:
+                for connection in client.voice_clients:
+                    if connection.channel.guild.id == message.guild.id:
+                        await connection.disconnect()
+                        break
             await message.channel.send("Disconnected from Voice Channel.")
 
-async def checkVoiceChannel(server):
-    if server.id in connectionCache:
+async def checkVoiceChannel(server, client):
+    if server.me.voice is not None:
+        if server.id not in connectionCache:
+            for connection in client.voice_clients:
+                if connection.channel.guild.id == server.id:
+                    connectionCache[server.id] = connection
+                    break
         vc = connectionCache[server.id]
         if len(vc.channel.members) <= 1:
             await vc.disconnect()

@@ -196,7 +196,7 @@ async def on_message(message):
             elif command == START_AMBIENCE_COMMAND:
                 await startAmbience(message, commandArgs)
             elif command == STOP_AMBIENCE_COMMAND:
-                await stopAmbience(message)
+                await stopAmbience(message, client)
 
             elif command == PAYDAY_SETUP_COMMAND:
                 await setupPayday(message, commandArgs)
@@ -319,7 +319,7 @@ async def on_guild_channel_create(channel):
 
 @client.event
 async def on_voice_state_update(member, before, after):
-    await checkVoiceChannel(member.guild)
+    await checkVoiceChannel(member.guild, client)
 
 async def help(message):
     userPerms = message.author.permissions_in(message.channel)
