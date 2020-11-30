@@ -22,14 +22,14 @@ import datetime
 import asyncpg
 import math
 
-from Constants import *
+import Constants
 
 connPool = None
 
 async def getConnection():
     global connPool
     if connPool is None:
-        connPool = await asyncpg.create_pool(DATABASE_URL)
+        connPool = await asyncpg.create_pool(Constants.DATABASE_URL)
     return await connPool.acquire()
 
 async def returnConnection(conn):
