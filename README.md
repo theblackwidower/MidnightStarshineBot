@@ -16,6 +16,8 @@ First of all, you'll need a Discord Bot Token. This is how the bot logs into Dis
 
 If you don't have a bot token, you can get one here: [Discord Developers Portal](https://discordapp.com/developers/applications)
 
+While at the Developers Portal, you'll also need to enable all Privileged Gateway Intents.
+
 With that, add a new file in the bot's root folder named `.env`. (The dot at the beginning is very important.)
 
 This file should contain the following code:
