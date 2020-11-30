@@ -97,7 +97,7 @@ async def clearPayday(message):
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_payday_settings WHERE server = $1', message.guild.id)
             if serverData[0] > 0:
                 await conn.execute('DELETE FROM tbl_payday_settings WHERE server = $1', message.guild.id)
-                await message.channel.send("Payday feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + PAYDAY_SETUP_COMMAND + "` again.")
+                await message.channel.send("Payday feature completely cleared out. If you want to reenable it, please run `" + getPrefix(message.guild) + PAYDAY_SETUP_COMMAND + "` again.")
             else:
                 await message.channel.send("Payday feature has not even been set up, so there's no reason to clear it.")
         finally:
@@ -250,7 +250,7 @@ async def buyRole(message, commandArgs):
                 elif purchaseData is not None:
                     await message.channel.send("You already bought this role.")
                 elif accountData is None:
-                    await message.channel.send("Can't find any account data. Please run the payday command (`" + COMMAND_PREFIX + PAYDAY_COMMAND + "`) at least once so we can give you some " + currencyName + ".")
+                    await message.channel.send("Can't find any account data. Please run the payday command (`" + getPrefix(message.guild) + PAYDAY_COMMAND + "`) at least once so we can give you some " + currencyName + ".")
                 else:
                     roleCost = costData[0]
                     memberFunds = accountData[0]

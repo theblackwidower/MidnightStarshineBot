@@ -134,7 +134,7 @@ async def getRuleBackup(message):
             output = "**BACKUP OF SERVER RULES** for " + message.guild.name + ": \n```"
             for i in range(count):
                 # TODO: add some kind of length control
-                output += "\n" + COMMAND_PREFIX + RULE_SET_COMMAND + " " + ruleData[i][0]
+                output += "\n" + getPrefix(message.guild) + RULE_SET_COMMAND + " " + ruleData[i][0]
             output += "```"
             await message.author.create_dm()
             await message.author.dm_channel.send(output)

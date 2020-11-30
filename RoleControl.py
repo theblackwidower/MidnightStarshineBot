@@ -43,7 +43,7 @@ async def createRoleGroup(message, commandArgs):
                     await message.channel.send("That name is already in use.")
                 else:
                     await conn.execute('INSERT INTO tbl_role_groups (server, group_name) VALUES ($1, $2)', message.guild.id, name)
-                    await message.channel.send("The " + name + " group has been created. You can add roles to it by entering `" + COMMAND_PREFIX + ADD_TO_ROLE_GROUP_COMMAND + " " + name + "` followed by the role you want to add.")
+                    await message.channel.send("The " + name + " group has been created. You can add roles to it by entering `" + getPrefix(message.guild) + ADD_TO_ROLE_GROUP_COMMAND + " " + name + "` followed by the role you want to add.")
             finally:
                 await returnConnection(conn)
 

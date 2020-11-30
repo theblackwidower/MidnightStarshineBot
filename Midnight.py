@@ -80,7 +80,7 @@ async def on_ready():
     print(f'{client.user} has connected to Discord!')
     print(f'Successfully connected to the following servers:')
 
-    status = COMMAND_PREFIX + HELP_COMMAND + " for the obvious."
+    status = DEFAULT_PREFIX + HELP_COMMAND + " for the obvious."
     activity = discord.Activity(type=discord.ActivityType.listening, name=status)
     await client.change_presence(activity=activity)
 
@@ -88,6 +88,7 @@ async def on_ready():
         print(f'{guild.name}(id: {guild.id})')
         ActiveRole.setupDataCache(guild.id)
         await PromoterRole.setupInviteDataCache(guild)
+        await buildPrefixCache(guild.id)
         await yagSnipe(guild.get_member(YAG_ID))
         await rylanSnipeServer(guild)
 
@@ -175,9 +176,15 @@ async def on_member_update(before, after):
 async def on_message(message):
     await emojiCensor(message)
     await CustomizedCode.stormyVerificationResponse(message, client)
-    if message.content.casefold().startswith(COMMAND_PREFIX):
+    if message.content.casefold().startswith(DEFAULT_PREFIX):
+        prefix = DEFAULT_PREFIX
+    elif message.guild is not None and message.guild.id in prefixCache and message.content.casefold().startswith(prefixCache[message.guild.id]):
+        prefix = prefixCache[message.guild.id]
+    else:
+        prefix = None
+    if prefix is not None:
         parsing = message.content.partition(" ")
-        command = parsing[0][len(COMMAND_PREFIX):].casefold()
+        command = parsing[0].casefold()[len(prefix):]
         commandArgs = parsing[2].strip()
         if command == HELP_COMMAND:
             await help(message)
@@ -190,6 +197,9 @@ async def on_message(message):
         elif isinstance(message.channel, discord.TextChannel):
             if command == ROLECALL_COMMAND:
                 await rolecall(message, commandArgs)
+
+            elif command == CHANGE_PREFIX_COMMAND:
+                await changePrefix(message, commandArgs)
 
             elif command == Audio.LIST_AMBIENCE_COMMAND:
                 await Audio.listAmbience(message)
@@ -327,10 +337,12 @@ async def help(message):
 
     output = "Hello, I am Midnight Starshine. Your friendly neighbourhood Discord bot. Here to help in any way I can.\n"
 
+    prefix = getPrefix(message.guild)
+
     output += "\n**COMMANDS:**\n"
-    output += "`" + COMMAND_PREFIX + HELP_COMMAND + "`: Outputs this help file.\n"
-    output += "`" + COMMAND_PREFIX + SOURCE_CODE_COMMAND + "`: I'm licenced under the GNU AGPL version 3. This means you are fully entitled to look at my full source code. Enter this command and I'll send you a link to my GitHub repository.\n"
-    output += "`" + COMMAND_PREFIX + SANCTUARY_COMMAND + "`: Every girl needs a place to unwind. I have my very special sanctuary. If you'd like an invite to **\"Moonlight's Sanctuary\"**. Just use this command.\n"
+    output += "`" + prefix + HELP_COMMAND + "`: Outputs this help file.\n"
+    output += "`" + prefix + SOURCE_CODE_COMMAND + "`: I'm licenced under the GNU AGPL version 3. This means you are fully entitled to look at my full source code. Enter this command and I'll send you a link to my GitHub repository.\n"
+    output += "`" + prefix + SANCTUARY_COMMAND + "`: Every girl needs a place to unwind. I have my very special sanctuary. If you'd like an invite to **\"Moonlight's Sanctuary\"**. Just use this command.\n"
     if isinstance(message.channel, discord.TextChannel):
         conn = await getConnection()
         try:
@@ -342,93 +354,94 @@ async def help(message):
         finally:
             await returnConnection(conn)
         if message.author.id in ALTERNATE_SPEAKERS:
-            output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and a select few, tell me to.\n"
+            output += "`" + prefix + ECHO_COMMAND + "`: With this command I will repeat anything you, " + message.author.display_name + ", and a select few, tell me to.\n"
         if isManagePerms:
-            output += "`" + COMMAND_PREFIX + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+            output += "`" + prefix + ROLECALL_COMMAND + "`: Will output a list of all members, sorted by their top role. Can be filtered by including the name of any role (case sensitive).\n"
+            output += "`" + prefix + CHANGE_PREFIX_COMMAND + "`: Change the command prefix I recognise on this server.\n"
         if len(Audio.ambienceList) > 0:
             output += "\n*Ambient Audio Function:*\n"
-            output += "`" + COMMAND_PREFIX + Audio.LIST_AMBIENCE_COMMAND + "`: Will list all available ambience tracks.\n"
-            output += "`" + COMMAND_PREFIX + Audio.START_AMBIENCE_COMMAND + "`: Will begin playing the ambient sounds specified in whatever voice channel you're in until everyone leaves, or you ask me to stop.\n"
-            output += "`" + COMMAND_PREFIX + Audio.STOP_AMBIENCE_COMMAND + "`: Will stop ambient soundtrack and leave the voice channel.\n"
+            output += "`" + prefix + Audio.LIST_AMBIENCE_COMMAND + "`: Will list all available ambience tracks.\n"
+            output += "`" + prefix + Audio.START_AMBIENCE_COMMAND + "`: Will begin playing the ambient sounds specified in whatever voice channel you're in until everyone leaves, or you ask me to stop.\n"
+            output += "`" + prefix + Audio.STOP_AMBIENCE_COMMAND + "`: Will stop ambient soundtrack and leave the voice channel.\n"
         if isManagePerms:
             output += "\n*Active Role Function:*\n"
-            output += "`" + COMMAND_PREFIX + ActiveRole.SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
-            output += "`" + COMMAND_PREFIX + ActiveRole.CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "`" + prefix + ActiveRole.SETUP_ACTIVE_ROLE_COMMAND + "`: Use to setup the active role feature. Enter the command, followed by the role, gap between messages to define as 'active', minimum duration of activity, and maximum duration of inactivity.\n"
+            output += "`" + prefix + ActiveRole.CLEAR_ACTIVE_ROLE_COMMAND + "`: Use to disable the active role feature. If you want to reenable it, you'll have to run the setup command again.\n"
             output += "\n*Promoter Role Function:*\n"
-            output += "`" + COMMAND_PREFIX + PromoterRole.SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role.\n"
-            output += "`" + COMMAND_PREFIX + PromoterRole.CLEAR_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "`" + prefix + PromoterRole.SETUP_PROMOTER_ROLE_COMMAND + "`: Use to setup the promoter role feature. Enter the command, followed by the role, and the number of recrutments one would need to qualify for the role.\n"
+            output += "`" + prefix + PromoterRole.CLEAR_PROMOTER_ROLE_COMMAND + "`: Use to disable the promoter role feature. If you want to reenable it, you'll have to run the setup command again.\n"
             output += "\n*Bumper Role Function:*\n"
-            output += "`" + COMMAND_PREFIX + BumperRole.SETUP_BUMPER_ROLE_COMMAND + "`: Use to setup the bumper role feature. Enter the command, followed by the role, and the number of successful bumps one would need to have done to qualify for the role.\n"
-            output += "`" + COMMAND_PREFIX + BumperRole.CLEAR_BUMPER_ROLE_COMMAND + "`: Use to disable the bumper role feature. If you want to reenable it, you'll have to run the setup command again.\n"
-            output += "`" + COMMAND_PREFIX + BumperRole.SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
-            output += "`" + COMMAND_PREFIX + BumperRole.BUMP_BOARD_SET_COMMAND + "`: Will set which channel to post the bump leaderboard in. This post will be continually updated as bumps are made.\n"
-            output += "`" + COMMAND_PREFIX + BumperRole.BUMP_BOARD_CLEAR_COMMAND + "`: Will delete the official posting of the bump leaderboard.\n"
+            output += "`" + prefix + BumperRole.SETUP_BUMPER_ROLE_COMMAND + "`: Use to setup the bumper role feature. Enter the command, followed by the role, and the number of successful bumps one would need to have done to qualify for the role.\n"
+            output += "`" + prefix + BumperRole.CLEAR_BUMPER_ROLE_COMMAND + "`: Use to disable the bumper role feature. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "`" + prefix + BumperRole.SCAN_BUMP_CHANNEL_COMMAND + "`: Use to scan a particular channel for any and all server bump records. This is so any historical bumps will be counted toward the total, even if they occured before the feature was first implemented.\n"
+            output += "`" + prefix + BumperRole.BUMP_BOARD_SET_COMMAND + "`: Will set which channel to post the bump leaderboard in. This post will be continually updated as bumps are made.\n"
+            output += "`" + prefix + BumperRole.BUMP_BOARD_CLEAR_COMMAND + "`: Will delete the official posting of the bump leaderboard.\n"
             output += "\n*Role restrictions:*\n"
-            output += "`" + COMMAND_PREFIX + RoleControl.CREATE_ROLE_GROUP_COMMAND + "`: Creates a new role group. This will restrict all members to select only one role from each group.\n"
-            output += "`" + COMMAND_PREFIX + RoleControl.DELETE_ROLE_GROUP_COMMAND + "`: Deletes an existant role group.\n"
-            output += "`" + COMMAND_PREFIX + RoleControl.ADD_TO_ROLE_GROUP_COMMAND + "`: Adds a role to a group. Provide the group name, and then the role.\n"
-            output += "`" + COMMAND_PREFIX + RoleControl.REMOVE_FROM_ROLE_GROUP_COMMAND + "`: Removes a role from a group. Provide the group name, and then the role.\n"
+            output += "`" + prefix + RoleControl.CREATE_ROLE_GROUP_COMMAND + "`: Creates a new role group. This will restrict all members to select only one role from each group.\n"
+            output += "`" + prefix + RoleControl.DELETE_ROLE_GROUP_COMMAND + "`: Deletes an existant role group.\n"
+            output += "`" + prefix + RoleControl.ADD_TO_ROLE_GROUP_COMMAND + "`: Adds a role to a group. Provide the group name, and then the role.\n"
+            output += "`" + prefix + RoleControl.REMOVE_FROM_ROLE_GROUP_COMMAND + "`: Removes a role from a group. Provide the group name, and then the role.\n"
         if isManagePerms or paydayData is not None or (currencyData is not None and (userPerms.manage_roles or paidRolesData[0] > 0)):
             output += "\n*Buyable roles:*\n"
         if isManagePerms:
-            output += "`" + COMMAND_PREFIX + Economy.PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
-            output += "`" + COMMAND_PREFIX + Economy.PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
+            output += "`" + prefix + Economy.PAYDAY_SETUP_COMMAND + "`: Can be used to set up the parameters of the payday command. Run the command, followed by the amount of money you want to give the users, the name of the currency, and finally, the cooldown time.\n"
+            output += "`" + prefix + Economy.PAYDAY_CLEAR_COMMAND + "`: Use to disable the payday command. If you want to reenable it, you'll have to run the setup command again.\n"
         if paydayData is not None:
-            output += "`" + COMMAND_PREFIX + Economy.PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(paydayData[1]) + ".\n"
-            output += "`" + COMMAND_PREFIX + Economy.BALANCE_COMMAND + "`: Will display your account balance.\n"
+            output += "`" + prefix + Economy.PAYDAY_COMMAND + "`: Will put " + str(paydayData[0]) + " " + currencyData[0] + " into your account. Can only be run once every " + timeDeltaToString(paydayData[1]) + ".\n"
+            output += "`" + prefix + Economy.BALANCE_COMMAND + "`: Will display your account balance.\n"
         if currencyData is not None:
             if userPerms.manage_roles:
-                output += "`" + COMMAND_PREFIX + Economy.BUY_ROLE_SETUP_COMMAND + "`: Will allow you to set up a role for purchase. Just provide the role, and the cost in " + currencyData[0] + ".\n"
-                output += "`" + COMMAND_PREFIX + Economy.BUY_ROLE_REMOVE_COMMAND + "`: Will allow you to remove a role from the purchase list. Just name the role, and it'll be removed.\n"
+                output += "`" + prefix + Economy.BUY_ROLE_SETUP_COMMAND + "`: Will allow you to set up a role for purchase. Just provide the role, and the cost in " + currencyData[0] + ".\n"
+                output += "`" + prefix + Economy.BUY_ROLE_REMOVE_COMMAND + "`: Will allow you to remove a role from the purchase list. Just name the role, and it'll be removed.\n"
             if paidRolesData[0] > 0:
-                output += "`" + COMMAND_PREFIX + Economy.LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
-                output += "`" + COMMAND_PREFIX + Economy.BUY_ROLE_COMMAND + "`: Will allow you to buy any specified role for " + currencyData[0] + ".\n"
-                output += "`" + COMMAND_PREFIX + Economy.REFUND_ROLE_COMMAND + "`: Will allow you to return any specified role, and get a full refund in " + currencyData[0] + ".\n"
+                output += "`" + prefix + Economy.LIST_ROLES_COMMAND + "`: Will display a list of all roles available for purchase in " + currencyData[0] + ".\n"
+                output += "`" + prefix + Economy.BUY_ROLE_COMMAND + "`: Will allow you to buy any specified role for " + currencyData[0] + ".\n"
+                output += "`" + prefix + Economy.REFUND_ROLE_COMMAND + "`: Will allow you to return any specified role, and get a full refund in " + currencyData[0] + ".\n"
         if rulesData[0] > 0 or isManagePerms:
             output += "\n*Rule management:*\n"
         if rulesData[0] > 0:
-            output += "`" + COMMAND_PREFIX + Rules.RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
+            output += "`" + prefix + Rules.RULE_GET_COMMAND + "`: Will output any rule I know of with the given number.\n"
         if isManagePerms:
-            output += "`" + COMMAND_PREFIX + Rules.RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
-            output += "`" + COMMAND_PREFIX + Rules.RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
-            output += "`" + COMMAND_PREFIX + Rules.RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
+            output += "`" + prefix + Rules.RULE_SET_COMMAND + "`: Use this command to inform me of a server rule I need to know about.\n"
+            output += "`" + prefix + Rules.RULE_EDIT_COMMAND + "`: Use this command if you need to edit a server rule. Just provide the number, and the new rule.\n"
+            output += "`" + prefix + Rules.RULE_DELETE_COMMAND + "`: Use this command if you want me to forget a particular server rule. Just provide the number, and I'll forget all about it.\n"
         if rulesData[0] > 0:
-            output += "`" + COMMAND_PREFIX + Rules.RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
+            output += "`" + prefix + Rules.RULE_GET_ALL_COMMAND + "`: Will send a copy of the server rules to your DMs.\n"
             if isManagePerms:
-                output += "`" + COMMAND_PREFIX + Rules.RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
-                output += "`" + COMMAND_PREFIX + Rules.RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
-                output += "`" + COMMAND_PREFIX + Rules.RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
+                output += "`" + prefix + Rules.RULE_GET_BACKUP_COMMAND + "`: Will send a backup of the server rules to your DMs, to allow for easy recovery in the event of a database failure.\n"
+                output += "`" + prefix + Rules.RULE_CHANNEL_SET_COMMAND + "`: Will set which channel to post the server rules in. This post will be continually updated as the rules change.\n"
+                output += "`" + prefix + Rules.RULE_CHANNEL_CLEAR_COMMAND + "`: Will delete the official posting of the server rules.\n"
         if isManagePerms or userPerms.kick_members or userPerms.ban_members:
             output += "\n*Moderation:*\n"
         if isManagePerms:
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_MUTE_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the mute function. This'll speed up and simplify excution while still maintaining the system's strength.\n"
+            output += "`" + prefix + Moderation.MOD_MUTE_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the mute function. This'll speed up and simplify excution while still maintaining the system's strength.\n"
         if userPerms.kick_members:
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_MUTE_COMMAND + "`: Will mute the specified user in the specified channel, or all channels if none is specified.\n"
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in the specified channel, or all channels if none is specified.\n"
+            output += "`" + prefix + Moderation.MOD_MUTE_COMMAND + "`: Will mute the specified user in the specified channel, or all channels if none is specified.\n"
+            output += "`" + prefix + Moderation.MOD_UNMUTE_COMMAND + "`: Will unmute the specified user in the specified channel, or all channels if none is specified.\n"
         if isManagePerms:
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_TIMEOUT_SETUP_COMMAND + "`: Can be used to set up timeouts, which restricts a user to a single channel or category specifically for that purpose. Just specify the channel or category, and you're all set.\n"
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_TIMEOUT_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the timeout function. This'll speed up and simplify excution while still maintaining the system's strength."
+            output += "`" + prefix + Moderation.MOD_TIMEOUT_SETUP_COMMAND + "`: Can be used to set up timeouts, which restricts a user to a single channel or category specifically for that purpose. Just specify the channel or category, and you're all set.\n"
+            output += "`" + prefix + Moderation.MOD_TIMEOUT_ROLE_SETUP_COMMAND + "`: Can be used to set up a special role for the timeout function. This'll speed up and simplify excution while still maintaining the system's strength."
             if timeoutData is None:
-                output += " Please be sure to run the `" + COMMAND_PREFIX + Moderation.MOD_TIMEOUT_SETUP_COMMAND + "` command before attempting to set up the role."
+                output += " Please be sure to run the `" + prefix + Moderation.MOD_TIMEOUT_SETUP_COMMAND + "` command before attempting to set up the role."
             output += "\n"
         if userPerms.kick_members:
             if timeoutData is not None:
-                output += "`" + COMMAND_PREFIX + Moderation.MOD_TIMEOUT_COMMAND + "`: Will isolate the specified user to a single channel: <#" + str(timeoutData[0]) + ">\n"
-                output += "`" + COMMAND_PREFIX + Moderation.MOD_TIMEIN_COMMAND + "`: Will return the specified user from their timeout in <#" + str(timeoutData[0]) + ">.\n"
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
+                output += "`" + prefix + Moderation.MOD_TIMEOUT_COMMAND + "`: Will isolate the specified user to a single channel: <#" + str(timeoutData[0]) + ">\n"
+                output += "`" + prefix + Moderation.MOD_TIMEIN_COMMAND + "`: Will return the specified user from their timeout in <#" + str(timeoutData[0]) + ">.\n"
+            output += "`" + prefix + Moderation.MOD_KICK_COMMAND + "`: Will kick the specified user. Specify the reason after mentioning the user.\n"
         if userPerms.ban_members:
-            output += "`" + COMMAND_PREFIX + Moderation.MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
+            output += "`" + prefix + Moderation.MOD_BAN_SIMPLE_COMMAND + "`: Will ban the specified user. Specify the reason after mentioning the user.\n"
             if userPerms.manage_messages:
-                output += "`" + COMMAND_PREFIX + Moderation.MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
+                output += "`" + prefix + Moderation.MOD_BAN_DELETE_COMMAND + "`: Will ban the specified user, and delete all messages over the past 24 hours. Specify the reason after mentioning the user.\n"
     elif isinstance(message.channel, discord.DMChannel):
         if message.author.id in ALTERNATE_SPEAKERS:
-            output += "`" + COMMAND_PREFIX + ECHO_COMMAND + "`: With this command I will forward anything you tell me to, to the channel ID specified, assuming I can actually access the channel specified.\n"
-        output += "`" + COMMAND_PREFIX + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
+            output += "`" + prefix + ECHO_COMMAND + "`: With this command I will forward anything you tell me to, to the channel ID specified, assuming I can actually access the channel specified.\n"
+        output += "`" + prefix + CLEAR_DMS_COMMAND + "`: Will delete any DM I've sent to you, when specified with a message ID. Will delete all my DMs if no ID is provided.\n"
         if message.author.id == MIDNIGHTS_TRUE_MASTER:
-            output += "`" + COMMAND_PREFIX + RemoteAdmin.REMOTE_ADMIN_SERVER_LIST_COMMAND + "`: Will list all servers I'm currently running on.\n"
-            output += "`" + COMMAND_PREFIX + RemoteAdmin.REMOTE_ADMIN_SERVER_REMOVE_COMMAND + "`: Will remove me from whatever server is specified by ID or full name.\n"
-            output += "`" + COMMAND_PREFIX + RemoteAdmin.REMOTE_ADMIN_CHANNEL_LIST_COMMAND + "`: Will list all channels I can see in the specified server.\n"
-            output += "`" + COMMAND_PREFIX + RemoteAdmin.REMOTE_ADMIN_GET_PERMS_COMMAND + "`: Will list all my permissions in the channel or server specified.\n"
+            output += "`" + prefix + RemoteAdmin.REMOTE_ADMIN_SERVER_LIST_COMMAND + "`: Will list all servers I'm currently running on.\n"
+            output += "`" + prefix + RemoteAdmin.REMOTE_ADMIN_SERVER_REMOVE_COMMAND + "`: Will remove me from whatever server is specified by ID or full name.\n"
+            output += "`" + prefix + RemoteAdmin.REMOTE_ADMIN_CHANNEL_LIST_COMMAND + "`: Will list all channels I can see in the specified server.\n"
+            output += "`" + prefix + RemoteAdmin.REMOTE_ADMIN_GET_PERMS_COMMAND + "`: Will list all my permissions in the channel or server specified.\n"
 
     if len(output) > MAX_CHARS:
         outputLines = output.split("\n")

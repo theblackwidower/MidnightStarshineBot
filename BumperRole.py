@@ -76,7 +76,7 @@ async def clearBumperRole(message):
             if serverData[0] > 0:
                 await conn.execute('DELETE FROM tbl_bumper_role_settings WHERE server = $1', message.guild.id)
                 del invitesCache[message.guild.id]
-                await message.channel.send("Bumper role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_BUMPER_ROLE_COMMAND + "` again.")
+                await message.channel.send("Bumper role feature completely cleared out. If you want to reenable it, please run `" + getPrefix(message.guild) + SETUP_BUMPER_ROLE_COMMAND + "` again.")
             else:
                 await message.channel.send("Bumper role feature has not even been set up, so there's no reason to clear it.")
         finally:

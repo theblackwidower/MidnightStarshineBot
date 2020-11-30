@@ -57,7 +57,7 @@ async def startAmbience(message, commandArgs):
             if message.guild.me.voice is not None:
                 await message.channel.send("Already connected to a voice channel.")
             elif commandArgs not in ambienceList:
-                await message.channel.send("Cannot find specified track. Try running `" + COMMAND_PREFIX + LIST_AMBIENCE_COMMAND + "`.")
+                await message.channel.send("Cannot find specified track. Try running `" + getPrefix(message.guild) + LIST_AMBIENCE_COMMAND + "`.")
             else:
                 if message.guild.id in connectionCache:
                     await connectionCache[message.guild.id].disconnect()

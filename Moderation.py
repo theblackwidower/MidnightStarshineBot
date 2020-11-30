@@ -221,7 +221,7 @@ async def setupTimeoutRole(message, commandArgs):
             try:
                 channelData = await conn.fetchrow('SELECT channel FROM tbl_timeout_channel WHERE server = $1', message.guild.id)
                 if channelData is None:
-                    await message.channel.send("Please set up the timeout channel using the `" + COMMAND_PREFIX + MOD_TIMEOUT_SETUP_COMMAND + "` command before setting up the role.")
+                    await message.channel.send("Please set up the timeout channel using the `" + getPrefix(message.guild) + MOD_TIMEOUT_SETUP_COMMAND + "` command before setting up the role.")
                 else:
                     timeoutChannel = message.guild.get_channel(channelData[0])
                     if timeoutChannel is None:

@@ -87,7 +87,7 @@ async def clearActive(message):
             serverData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
             if serverData[0] > 0:
                 await conn.execute('DELETE FROM tbl_active_role_settings WHERE server = $1', message.guild.id)
-                await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + COMMAND_PREFIX + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
+                await message.channel.send("Active role feature completely cleared out. If you want to reenable it, please run `" + getPrefix(message.guild) + SETUP_ACTIVE_ROLE_COMMAND + "` again.")
             else:
                 await message.channel.send("Active role feature has not even been set up, so there's no reason to clear it.")
         finally:

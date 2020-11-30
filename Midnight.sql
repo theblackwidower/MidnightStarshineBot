@@ -16,6 +16,11 @@
   -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -- ------------------------------------------------------------------------
 
+CREATE TABLE "tbl_prefix" (
+  "server" BIGINT NOT NULL PRIMARY KEY,
+  "prefix" TEXT NOT NULL
+);
+
 CREATE TABLE "tbl_currency" (
   "server" BIGINT PRIMARY KEY,
   "currency_name" TEXT NOT NULL
