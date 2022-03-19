@@ -107,21 +107,33 @@ async def on_error(self, event_method, *args, **kwargs):
 
         author = None
         channel = None
+        content = None
+        server = None
         if isinstance(event_method, discord.TextChannel):
             channel = event_method
+            server = event_method.guild
         elif isinstance(event_method, discord.Message):
             author = event_method.author
             channel = event_method.channel
+            content = event_method.content
+            server = event_method.guild
 
-        if channel is not None:
-            if channel.guild.me.permissions_in(channel).send_messages:
-                await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
-            elif author is not None:
-                try:
-                    await author.create_dm()
-                    await author.dm_channel.send("Pretty sure you broke something with that last message. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
-                except discord.Forbidden:
-                    await master.dm_channel.send("Also, user " + str(author) + " (" + str(author.id) + ") blocked me. That isn't very nice.")
+        if content is not None:
+            if content.casefold().startswith(DEFAULT_PREFIX):
+                prefix = DEFAULT_PREFIX
+            elif server.id in prefixCache and content.casefold().startswith(prefixCache[server.id]):
+                prefix = prefixCache[message.guild.id]
+            else:
+                prefix = None
+            if prefix is not None:
+                if channel.guild.me.permissions_in(channel).send_messages:
+                    await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+                elif author is not None:
+                    try:
+                        await author.create_dm()
+                        await author.dm_channel.send("Pretty sure you broke something with that last message. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+                    except discord.Forbidden:
+                        await master.dm_channel.send("Also, user " + str(author) + " (" + str(author.id) + ") blocked me. That isn't very nice.")
 
     except:
         master = client.get_user(MIDNIGHTS_TRUE_MASTER)
