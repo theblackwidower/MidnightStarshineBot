@@ -1,6 +1,6 @@
     # ------------------------------------------------------------------------
     # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
+    # Copyright (C) 2022  T. Duke Perry
     #
     # This program is free software: you can redistribute it and/or modify
     # it under the terms of the GNU Affero General Public License as published
@@ -150,12 +150,15 @@ async def recordBump(message, client):
                     await message.channel.send(getOrdinal(countData[0]) + " bump by " + bumper.mention + " recorded.")
                     for row in serverData:
                         role = message.guild.get_role(row[0])
-                        bumpCount = row[1]
-                        if bumper.roles.count(role) == 0:
-                            if countData[0] >= bumpCount:
-                                await bumper.add_roles(role, reason="Successfully bumped the server a total of " + str(countData[0]) + " times.")
-                            else:
-                                break
+                        if role is None:
+                            await conn.execute('DELETE FROM tbl_bumper_role_settings WHERE server = $1 AND role = $2', message.guild.id, row[0])
+                        else:
+                            bumpCount = row[1]
+                            if bumper.roles.count(role) == 0:
+                                if countData[0] >= bumpCount:
+                                    await bumper.add_roles(role, reason="Successfully bumped the server a total of " + str(countData[0]) + " times.")
+                                else:
+                                    break
                     await updateBumpLeaderboardChannel(message, client)
         finally:
             await returnConnection(conn)
@@ -170,13 +173,16 @@ async def persistBumperRole(member):
                 bumpCount = recordData[0]
                 for row in serverData:
                     role = member.guild.get_role(row[0])
-                    minBumpCount = row[1]
-                    if member.roles.count(role) > 0:
-                        if bumpCount < minBumpCount:
-                            await member.remove_roles(role, reason="This user does not qualify for the bumper role, as they have only bumped " + str(bumpCount) + " times out of the " + str(minBumpCount) + " they need.")
+                    if role is None:
+                        await conn.execute('DELETE FROM tbl_bumper_role_settings WHERE server = $1 AND role = $2', member.guild.id, row[0])
                     else:
-                        if bumpCount >= minBumpCount:
-                            await member.add_roles(role, reason="This user had their bumper role returned, since records show they bumped " + str(bumpCount) + " times, and they only need " + str(minBumpCount) + " to qualify.")
+                        minBumpCount = row[1]
+                        if member.roles.count(role) > 0:
+                            if bumpCount < minBumpCount:
+                                await member.remove_roles(role, reason="This user does not qualify for the bumper role, as they have only bumped " + str(bumpCount) + " times out of the " + str(minBumpCount) + " they need.")
+                        else:
+                            if bumpCount >= minBumpCount:
+                                await member.add_roles(role, reason="This user had their bumper role returned, since records show they bumped " + str(bumpCount) + " times, and they only need " + str(minBumpCount) + " to qualify.")
         finally:
             await returnConnection(conn)
 

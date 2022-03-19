@@ -1,6 +1,6 @@
     # ------------------------------------------------------------------------
     # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
+    # Copyright (C) 2022  T. Duke Perry
     #
     # This program is free software: you can redistribute it and/or modify
     # it under the terms of the GNU Affero General Public License as published
@@ -133,7 +133,9 @@ async def checkRoleControl(before, after):
                     await returnConnection(conn)
                     for row in restrictionData:
                         thisRole = after.guild.get_role(row[0])
-                        if thisRole is not newRole and thisRole in roleListAfter:
+                        if thisRole is None:
+                            await conn.execute('DELETE FROM tbl_controlled_roles WHERE server = $1 AND role = $2', after.guild.id, row[0])
+                        elif thisRole is not newRole and thisRole in roleListAfter:
                             await after.remove_roles(thisRole, reason="Member can only have one role from the " + groupName + " group.")
             finally:
                 await returnConnection(conn)

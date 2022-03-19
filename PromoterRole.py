@@ -1,6 +1,6 @@
     # ------------------------------------------------------------------------
     # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
+    # Copyright (C) 2022  T. Duke Perry
     #
     # This program is free software: you can redistribute it and/or modify
     # it under the terms of the GNU Affero General Public License as published
@@ -164,13 +164,16 @@ async def recordRecruit(recruit):
                                 if recruiter is not None and not recruiter.bot:
                                     for row in serverData:
                                         role = recruit.guild.get_role(row[0])
-                                        recruitCount = row[1]
-                                        if recruiter.roles.count(role) == 0:
-                                            countData = await conn.fetchrow('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = $1 AND recruiter = $2', recruit.guild.id, recruiter.id)
-                                            if countData[0] >= recruitCount:
-                                                await recruiter.add_roles(role, reason="Recruited a total of " + str(countData[0]) + " members.")
-                                            else:
-                                                break
+                                        if role is None:
+                                            await conn.execute('DELETE FROM tbl_promoter_role_settings WHERE server = $1 AND role = $2', recruit.guild.id, row[0])
+                                        else:
+                                            recruitCount = row[1]
+                                            if recruiter.roles.count(role) == 0:
+                                                countData = await conn.fetchrow('SELECT COUNT(recruited_member) FROM tbl_recruitment_record WHERE server = $1 AND recruiter = $2', recruit.guild.id, recruiter.id)
+                                                if countData[0] >= recruitCount:
+                                                    await recruiter.add_roles(role, reason="Recruited a total of " + str(countData[0]) + " members.")
+                                                else:
+                                                    break
         finally:
             await returnConnection(conn)
 
@@ -184,13 +187,16 @@ async def persistPromoterRole(member):
                 recruitCount = recordData[0]
                 for row in serverData:
                     role = member.guild.get_role(row[0])
-                    minRecruitCount = row[1]
-                    if member.roles.count(role) > 0:
-                        if recruitCount < minRecruitCount:
-                            await member.remove_roles(role, reason="This user does not qualify for the promoter role, as they have only recruited " + str(recruitCount) + " members out of the " + str(minRecruitCount) + " they need.")
+                    if role is None:
+                        await conn.execute('DELETE FROM tbl_promoter_role_settings WHERE server = $1 AND role = $2', member.guild.id, row[0])
                     else:
-                        if recruitCount >= minRecruitCount:
-                            await member.add_roles(role, reason="This user had their promoter role returned, since records show they recruited " + str(recruitCount) + " members, and they only need " + str(minRecruitCount) + " to qualify.")
+                        minRecruitCount = row[1]
+                        if member.roles.count(role) > 0:
+                            if recruitCount < minRecruitCount:
+                                await member.remove_roles(role, reason="This user does not qualify for the promoter role, as they have only recruited " + str(recruitCount) + " members out of the " + str(minRecruitCount) + " they need.")
+                        else:
+                            if recruitCount >= minRecruitCount:
+                                await member.add_roles(role, reason="This user had their promoter role returned, since records show they recruited " + str(recruitCount) + " members, and they only need " + str(minRecruitCount) + " to qualify.")
         finally:
             await returnConnection(conn)
 
