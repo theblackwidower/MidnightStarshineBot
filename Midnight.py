@@ -1,6 +1,6 @@
     # ------------------------------------------------------------------------
     # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
+    # Copyright (C) 2022  T. Duke Perry
     #
     # This program is free software: you can redistribute it and/or modify
     # it under the terms of the GNU Affero General Public License as published
@@ -317,7 +317,7 @@ async def on_message_delete(message):
 
 @client.event
 async def on_guild_role_delete(role):
-    await Economy.roleDeleted(role)
+    await roleDeleted(role)
 
 @client.event
 async def on_member_ban(server, user):

@@ -1,6 +1,6 @@
     # ------------------------------------------------------------------------
     # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
+    # Copyright (C) 2022  T. Duke Perry
     #
     # This program is free software: you can redistribute it and/or modify
     # it under the terms of the GNU Affero General Public License as published
@@ -34,6 +34,24 @@ async def getConnection():
 
 async def returnConnection(conn):
     await connPool.release(conn)
+
+async def roleDeleted(role):
+    conn = await getConnection()
+    try:
+        await deleteDbRole(conn, role, 'tbl_paid_roles')
+        await deleteDbRole(conn, role, 'tbl_active_role_settings')
+        await deleteDbRole(conn, role, 'tbl_promoter_role_settings')
+        await deleteDbRole(conn, role, 'tbl_bumper_role_settings')
+        await deleteDbRole(conn, role, 'tbl_controlled_roles')
+        await deleteDbRole(conn, role, 'tbl_mute_roles')
+        await deleteDbRole(conn, role, 'tbl_timeout_roles')
+    finally:
+        await returnConnection(conn)
+
+async def deleteDbRole(conn, role, dbName):
+    roleData = await conn.fetchrow('SELECT COUNT(server) FROM ' + dbName + ' WHERE server = $1 AND role = $2', role.guild.id, role.id)
+    if roleData[0] > 0:
+        await conn.execute('DELETE FROM ' + dbName + ' WHERE server = $1 AND role = $2', role.guild.id, role.id)
 
 def parseRole(server, string):
     string = string.strip()

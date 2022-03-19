@@ -1,6 +1,6 @@
     # ------------------------------------------------------------------------
     # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
+    # Copyright (C) 2022  T. Duke Perry
     #
     # This program is free software: you can redistribute it and/or modify
     # it under the terms of the GNU Affero General Public License as published
@@ -203,15 +203,6 @@ async def removeRole(message, commandArgs):
                     await message.channel.send("Can't find that role in the menu.")
             finally:
                 await returnConnection(conn)
-
-async def roleDeleted(role):
-    conn = await getConnection()
-    try:
-        roleData = await conn.fetchrow('SELECT COUNT(server) FROM tbl_paid_roles WHERE server = $1 AND role = $2', role.guild.id, role.id)
-        if roleData[0] > 0:
-            await conn.execute('DELETE FROM tbl_paid_roles WHERE server = $1 AND role = $2', role.guild.id, role.id)
-    finally:
-        await returnConnection(conn)
 
 async def roleMenu(message):
     conn = await getConnection()
