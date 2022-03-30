@@ -127,7 +127,11 @@ async def on_error(self, event_method, *args, **kwargs):
                 prefix = None
             if prefix is not None:
                 if channel.guild.me.permissions_in(channel).send_messages:
-                    await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
+                    (type, value, trace) = sys.exc_info()
+                    if type is discord.Forbidden:
+                        await channel.send("Sorry, can't do that. Check my permissions.")
+                    else:
+                        await channel.send("Oh, what did you do!? You broke it!\nSomething went wrong. But don't worry, the necessary people have been put to work fixing the problem. Please be patient.")
                 elif author is not None:
                     try:
                         await author.create_dm()
