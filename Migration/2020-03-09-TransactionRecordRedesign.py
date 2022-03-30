@@ -1,20 +1,20 @@
-    # ------------------------------------------------------------------------
-    # MidnightStarshineBot - a multipurpose Discord bot
-    # Copyright (C) 2020  T. Duke Perry
-    #
-    # This program is free software: you can redistribute it and/or modify
-    # it under the terms of the GNU Affero General Public License as published
-    # by the Free Software Foundation, either version 3 of the License, or
-    # (at your option) any later version.
-    #
-    # This program is distributed in the hope that it will be useful,
-    # but WITHOUT ANY WARRANTY; without even the implied warranty of
-    # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    # GNU Affero General Public License for more details.
-    #
-    # You should have received a copy of the GNU Affero General Public License
-    # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-    # ------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+#      MidnightStarshineBot - a multipurpose Discord bot
+#      Copyright (C) 2020  T. Duke Perry
+#
+#      This program is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU Affero General Public License as published
+#      by the Free Software Foundation, either version 3 of the License, or
+#      (at your option) any later version.
+#
+#      This program is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU Affero General Public License for more details.
+#
+#      You should have received a copy of the GNU Affero General Public License
+#      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# ------------------------------------------------------------------------------
 
 # On March 7, 2020. I redesigned the back end of the economy feature so only a summary of the accont record is stored in the database and transaction records are stored in external files.
 # This file is meant to be run only once to convert a pre-existing database from the old system to the new system.
